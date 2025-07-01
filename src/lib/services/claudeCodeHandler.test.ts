@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ClaudeCodeHandler } from './claudeCodeHandler';
-import type { ClaudeCodeEvent } from './claudeCodeHandler';
+import type { ClaudeCodeEvent, UnsubscribeFunction } from './claudeCodeHandler';
 
 // Mock the Claude Code SDK
 vi.mock('@anthropic-ai/claude-code', () => ({
@@ -45,8 +45,11 @@ describe('ClaudeCodeHandler', () => {
       const events1: ClaudeCodeEvent[] = [];
       const events2: ClaudeCodeEvent[] = [];
 
-      handler.listen((event) => events1.push(event));
-      handler.listen((event) => events2.push(event));
+      const unsubscribe1 = handler.listen((event) => events1.push(event));
+      const unsubscribe2 = handler.listen((event) => events2.push(event));
+
+      expect(typeof unsubscribe1).toBe('function');
+      expect(typeof unsubscribe2).toBe('function');
 
       // Mock a simple query response
       const mockMessages = [
@@ -63,9 +66,39 @@ describe('ClaudeCodeHandler', () => {
         expect(events1.length).toBe(events2.length);
       });
     });
+
+    it('should unsubscribe event listeners', () => {
+      const events: ClaudeCodeEvent[] = [];
+      const unsubscribe = handler.listen((event) => events.push(event));
+
+      // Test successful unsubscribe
+      const result = unsubscribe();
+      expect(result).toBe(true);
+
+      // Test unsubscribe of already removed listener
+      const result2 = unsubscribe();
+      expect(result2).toBe(false);
+    });
   });
 
   describe('send method', () => {
+    it('should fail if request is already in progress', async () => {
+      vi.mocked(query).mockImplementation(async function* () {
+        // Simulate a long-running request
+        await new Promise(resolve => setTimeout(resolve, 100));
+        yield { type: 'assistant', content: 'Response' };
+      });
+
+      const firstSend = handler.send('first message');
+      
+      // Try to send another message while first is in progress
+      await expect(handler.send('second message')).rejects.toThrow(
+        'A request is already in progress. Abort the current request before sending a new one.'
+      );
+
+      await firstSend;
+    });
+
     it('should send message and emit events', async () => {
       const mockMessages = [
         { type: 'assistant', content: 'Test response' }
@@ -169,11 +202,15 @@ describe('ClaudeCodeHandler', () => {
       
       // Add an event listener
       const testEvents: ClaudeCodeEvent[] = [];
-      handler.listen((event) => testEvents.push(event));
+      const unsubscribe = handler.listen((event) => testEvents.push(event));
       
       handler.clear();
 
       expect(handler.getSessionId()).toBeNull();
+      
+      // Test that listeners are cleared by trying to unsubscribe
+      const result = unsubscribe();
+      expect(result).toBe(false); // Should return false since listeners were cleared
       
       // Test that listeners are cleared by sending a message after clear
       vi.mocked(query).mockImplementation(async function* () {

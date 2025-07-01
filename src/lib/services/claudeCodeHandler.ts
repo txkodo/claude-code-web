@@ -8,6 +8,7 @@ export interface ClaudeCodeEvent {
 }
 
 export type EventListener = (event: ClaudeCodeEvent) => void;
+export type UnsubscribeFunction = () => boolean;
 
 export class ClaudeCodeHandler {
 	private claudeCodeSessionId: string | null = null;
@@ -26,8 +27,17 @@ export class ClaudeCodeHandler {
 		this.claudeCodeSessionId = sessionId;
 	}
 
-	listen(listener: EventListener): void {
+	listen(listener: EventListener): UnsubscribeFunction {
 		this.listeners.push(listener);
+		
+		return () => {
+			const index = this.listeners.indexOf(listener);
+			if (index > -1) {
+				this.listeners.splice(index, 1);
+				return true;
+			}
+			return false;
+		};
 	}
 
 	private emit(event: ClaudeCodeEvent): void {
@@ -35,6 +45,10 @@ export class ClaudeCodeHandler {
 	}
 
 	async send(message: string): Promise<void> {
+		if (this.abortController !== null) {
+			throw new Error('A request is already in progress. Abort the current request before sending a new one.');
+		}
+		
 		this.abortController = new AbortController();
 
 		try {
