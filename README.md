@@ -1,11 +1,12 @@
 # Claude Code Web App
 
-Bunとsvelitekitを使用したClaude Code SDKのWebアプリケーションです。ローカルディレクトリを指定してClaudeと対話的にコーディングができます。
+BunとSvelteKitを使用したClaude Code SDKのWebアプリケーションです。ローカルディレクトリを指定してClaude Code SDKと対話的にコーディングができます。
 
 ## 機能
 
 - ローカルディレクトリの選択（File System Access API対応）
-- Claude APIとのリアルタイムチャット
+- Claude Code SDKとのリアルタイムチャット
+- ストリーミングレスポンス対応
 - AbortControllerによるリクエストキャンセル機能
 - レスポンシブなUI
 - 設定の永続化（localStorage）
@@ -17,18 +18,23 @@ Bunとsvelitekitを使用したClaude Code SDKのWebアプリケーションで�
 bun install
 ```
 
-2. 開発サーバーを起動:
+2. 環境変数を設定:
+```bash
+export ANTHROPIC_API_KEY=your_api_key_here
+```
+
+3. 開発サーバーを起動:
 ```bash
 bun run dev
 ```
 
-3. ブラウザで `http://localhost:5173` を開く
+4. ブラウザで `http://localhost:5173` を開く
 
 ## 使用方法
 
-1. Anthropic API Keyを入力
-2. 作業したいディレクトリを選択
-3. Claudeとチャットを開始
+1. 作業したいディレクトリを選択
+2. Claudeに質問を入力
+3. Claude Code SDKがリアルタイムで応答
 
 ## 必要な環境
 
@@ -39,7 +45,7 @@ bun run dev
 ## 技術スタック
 
 - SvelteKit
-- TypeScript  
-- Anthropic SDK
+- TypeScript
+- Claude Code SDK (@anthropic-ai/claude-code)
 - Bun
 - Vite

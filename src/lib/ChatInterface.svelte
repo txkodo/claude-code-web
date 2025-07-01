@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Anthropic from '@anthropic-ai/sdk';
+	import { query, type SDKMessage } from '@anthropic-ai/claude-code';
 
-	export let apiKey: string;
 	export let directory: string;
 
 	interface Message {
@@ -15,15 +14,7 @@
 	let currentMessage = '';
 	let isLoading = false;
 	let abortController: AbortController | null = null;
-	let anthropic: Anthropic;
 	let messagesContainer: HTMLElement;
-
-	onMount(() => {
-		anthropic = new Anthropic({
-			apiKey,
-			dangerouslyAllowBrowser: true
-		});
-	});
 
 	function scrollToBottom() {
 		if (messagesContainer) {
@@ -51,38 +42,40 @@
 		setTimeout(scrollToBottom, 10);
 
 		try {
-			// Create the system message with directory context
-			const systemMessage = `You are Claude Code, a helpful AI assistant for software development. 
-You are working with code in the directory: ${directory}
-
-Help the user with coding tasks, code review, debugging, and software development questions.
-You can analyze files, suggest improvements, write code, and help with best practices.`;
-
-			const response = await anthropic.messages.create({
-				model: 'claude-3-sonnet-20240229',
-				max_tokens: 4000,
-				system: systemMessage,
-				messages: [
-					...messages.slice(-10).map(msg => ({
-						role: msg.role,
-						content: msg.content
-					})),
-					{
-						role: 'user',
-						content: `Working directory: ${directory}\n\n${messageToSend}`
+			// Use Claude Code SDK
+			const sdkMessages: SDKMessage[] = [];
+			const prompt = `Working directory: ${directory}\n\n${messageToSend}`;
+			
+			for await (const message of query({
+				prompt,
+				abortController,
+				options: {
+					maxTurns: 3,
+				},
+			})) {
+				sdkMessages.push(message);
+				
+				// Update UI with streaming response
+				if (message.type === 'text') {
+					const lastMessage = messages[messages.length - 1];
+					if (lastMessage && lastMessage.role === 'assistant') {
+						// Update existing assistant message
+						messages = [...messages.slice(0, -1), {
+							...lastMessage,
+							content: lastMessage.content + message.content
+						}];
+					} else {
+						// Create new assistant message
+						const assistantMessage: Message = {
+							role: 'assistant',
+							content: message.content,
+							timestamp: new Date()
+						};
+						messages = [...messages, assistantMessage];
 					}
-				]
-			}, {
-				signal: abortController.signal
-			});
-
-			const assistantMessage: Message = {
-				role: 'assistant',
-				content: response.content[0].type === 'text' ? response.content[0].text : 'Sorry, I could not generate a response.',
-				timestamp: new Date()
-			};
-
-			messages = [...messages, assistantMessage];
+					setTimeout(scrollToBottom, 10);
+				}
+			}
 		} catch (error) {
 			if (error instanceof Error && error.name === 'AbortError') {
 				console.log('Request was cancelled');
@@ -90,7 +83,7 @@ You can analyze files, suggest improvements, write code, and help with best prac
 				console.error('Error sending message:', error);
 				const errorMessage: Message = {
 					role: 'assistant',
-					content: 'Sorry, there was an error processing your request. Please check your API key and try again.',
+					content: 'エラーが発生しました。再度お試しください。',
 					timestamp: new Date()
 				};
 				messages = [...messages, errorMessage];
@@ -101,6 +94,7 @@ You can analyze files, suggest improvements, write code, and help with best prac
 			setTimeout(scrollToBottom, 10);
 		}
 	}
+
 
 	function cancelRequest() {
 		if (abortController) {
@@ -273,5 +267,51 @@ You can analyze files, suggest improvements, write code, and help with best prac
 		resize: vertical;
 		min-height: 44px;
 		max-height: 200px;
+	}
+
+	.loading {
+		opacity: 0.8;
+	}
+
+	.typing-indicator {
+		display: flex;
+		gap: 4px;
+		align-items: center;
+	}
+
+	.typing-indicator span {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: #6b7280;
+		animation: typing 1.4s infinite ease-in-out;
+	}
+
+	.typing-indicator span:nth-child(1) {
+		animation-delay: -0.32s;
+	}
+
+	.typing-indicator span:nth-child(2) {
+		animation-delay: -0.16s;
+	}
+
+	@keyframes typing {
+		0%, 80%, 100% {
+			transform: scale(0);
+			opacity: 0.5;
+		}
+		40% {
+			transform: scale(1);
+			opacity: 1;
+		}
+	}
+
+	.btn-danger {
+		background: #dc3545;
+		color: white;
+	}
+
+	.btn-danger:hover {
+		background: #c82333;
 	}
 </style>

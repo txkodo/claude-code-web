@@ -4,22 +4,17 @@
 	import DirectorySelector from '$lib/DirectorySelector.svelte';
 
 	let selectedDirectory = '';
-	let apiKey = '';
 	let isConfigured = false;
 
 	onMount(() => {
 		// Load saved configuration
-		const savedApiKey = localStorage.getItem('anthropic-api-key');
 		const savedDirectory = localStorage.getItem('selected-directory');
 		
-		if (savedApiKey) {
-			apiKey = savedApiKey;
-		}
 		if (savedDirectory) {
 			selectedDirectory = savedDirectory;
 		}
 		
-		isConfigured = !!(apiKey && selectedDirectory);
+		isConfigured = !!selectedDirectory;
 	});
 
 	function handleDirectorySelect(event: CustomEvent<string>) {
@@ -28,19 +23,12 @@
 		checkConfiguration();
 	}
 
-	function handleApiKeyChange() {
-		localStorage.setItem('anthropic-api-key', apiKey);
-		checkConfiguration();
-	}
-
 	function checkConfiguration() {
-		isConfigured = !!(apiKey && selectedDirectory);
+		isConfigured = !!selectedDirectory;
 	}
 
 	function resetConfiguration() {
-		apiKey = '';
 		selectedDirectory = '';
-		localStorage.removeItem('anthropic-api-key');
 		localStorage.removeItem('selected-directory');
 		isConfigured = false;
 	}
@@ -53,17 +41,6 @@
 		<div class="card">
 			<h2>設定</h2>
 			
-			<div class="form-group">
-				<label for="api-key">Anthropic API Key:</label>
-				<input
-					id="api-key"
-					type="password"
-					bind:value={apiKey}
-					on:input={handleApiKeyChange}
-					placeholder="sk-ant-..."
-					class="input"
-				/>
-			</div>
 
 			<DirectorySelector on:directorySelected={handleDirectorySelect} />
 			
@@ -78,14 +55,13 @@
 			<div class="config-info">
 				<h3>現在の設定</h3>
 				<p><strong>ディレクトリ:</strong> {selectedDirectory}</p>
-				<p><strong>API Key:</strong> 設定済み</p>
 				<button class="btn btn-danger" on:click={resetConfiguration}>
 					設定をリセット
 				</button>
 			</div>
 		</div>
 
-		<ChatInterface {apiKey} directory={selectedDirectory} />
+		<ChatInterface directory={selectedDirectory} />
 	{/if}
 </div>
 
