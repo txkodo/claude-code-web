@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 
 	export let directory: string;
+	export let sessionId: string | undefined = undefined;
 
 	interface Message {
 		role: 'user' | 'assistant';
@@ -42,10 +43,12 @@
 
 		try {
 			console.log('Sending request to /api/claude...');
-			console.log('Request payload:', {
+			const requestPayload = {
 				prompt: messageToSend,
-				directory: directory
-			});
+				directory: directory,
+				...(sessionId && { sessionId })
+			};
+			console.log('Request payload:', requestPayload);
 
 			// Call our API endpoint
 			const response = await fetch('/api/claude', {
@@ -53,10 +56,7 @@
 				headers: {
 					'Content-Type': 'application/json',
 				},
-				body: JSON.stringify({
-					prompt: messageToSend,
-					directory: directory
-				}),
+				body: JSON.stringify(requestPayload),
 				signal: abortController.signal
 			});
 

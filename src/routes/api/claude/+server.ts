@@ -1,22 +1,46 @@
 import { json } from '@sveltejs/kit';
 import { query, type SDKMessage } from '@anthropic-ai/claude-code';
+import { getSession, updateSessionClaudeId, incrementMessageCount } from '$lib/sessionManager';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
 	console.log('Claude API endpoint called');
 	
 	try {
-		const { prompt, directory } = await request.json();
-		console.log('Request data:', { prompt: prompt?.substring(0, 100) + '...', directory });
+		const { prompt, directory, sessionId } = await request.json();
+		console.log('Request data:', { 
+			prompt: prompt?.substring(0, 100) + '...', 
+			directory, 
+			sessionId 
+		});
 
-		if (!prompt || !directory) {
-			console.error('Missing required fields:', { prompt: !!prompt, directory: !!directory });
-			return json({ error: 'Missing prompt or directory' }, { status: 400 });
+		if (!prompt) {
+			console.error('Missing required fields:', { prompt: !!prompt });
+			return json({ error: 'Missing prompt' }, { status: 400 });
+		}
+
+		let workingDirectory = directory;
+		let session = null;
+
+		// If sessionId is provided, get session info
+		if (sessionId) {
+			session = getSession(sessionId);
+			if (session) {
+				workingDirectory = session.cwd;
+				console.log('Using session directory:', workingDirectory);
+			} else {
+				console.warn('Session not found:', sessionId);
+			}
+		}
+
+		if (!workingDirectory) {
+			console.error('No working directory available');
+			return json({ error: 'Missing directory or session' }, { status: 400 });
 		}
 
 		const messages: SDKMessage[] = [];
 		const fullPrompt = `You are Claude Code, a helpful AI assistant for software development.
-Working directory: ${directory}
+Working directory: ${workingDirectory}
 
 ${prompt}`;
 		
@@ -31,6 +55,8 @@ ${prompt}`;
 
 		try {
 			let messageCount = 0;
+			
+			// Claude Code SDK query - use simple structure for now
 			for await (const message of query({
 				prompt: fullPrompt,
 				abortController,
@@ -50,6 +76,18 @@ ${prompt}`;
 			
 			clearTimeout(timeout);
 			console.log(`Query completed. Total messages: ${messages.length}`);
+			
+			// Update session with Claude session ID if available
+			if (sessionId && messages.length > 0) {
+				const systemMessage = messages.find(m => m.type === 'system');
+				if (systemMessage?.session_id && (!session?.claudeSessionId || session.claudeSessionId !== systemMessage.session_id)) {
+					updateSessionClaudeId(sessionId, systemMessage.session_id);
+					console.log('Updated session with Claude session ID:', systemMessage.session_id);
+				}
+				
+				// Increment message count
+				incrementMessageCount(sessionId);
+			}
 			
 			console.log('All messages:', messages.map(m => ({ type: m.type, content: m.content, keys: Object.keys(m) })));
 
