@@ -91,54 +91,16 @@ ${prompt}`;
 			
 			console.log('All messages:', messages.map(m => ({ type: m.type, content: m.content, keys: Object.keys(m) })));
 
-			// Extract content from Claude Code SDK response
-			let textContent = '';
-			
-			// Priority 1: Use result type message if available (most reliable)
-			const resultMessage = messages.find(msg => msg.type === 'result' && msg.result);
-			if (resultMessage) {
-				textContent = resultMessage.result;
-				console.log('Using result message content');
-			} else {
-				// Priority 2: Use assistant type message
-				const assistantMessage = messages.find(msg => msg.type === 'assistant' && msg.message);
-				if (assistantMessage && Array.isArray(assistantMessage.message.content)) {
-					for (const contentItem of assistantMessage.message.content) {
-						if (contentItem.type === 'text' && contentItem.text) {
-							textContent += contentItem.text;
-						}
-					}
-					console.log('Using assistant message content');
-				} else {
-					// Priority 3: Use any direct text content
-					for (const message of messages) {
-						if (message.type === 'text' && typeof message.content === 'string') {
-							textContent += message.content;
-						}
-					}
-					console.log('Using direct text content');
-				}
-			}
-
-			console.log('Final extracted text content length:', textContent.length);
-
-			if (!textContent.trim()) {
-				console.warn('No text content extracted from messages after trying all methods');
+			if (messages.length === 0) {
+				console.warn('No messages received from Claude');
 				return json({ 
 					error: 'No response generated',
-					details: `Received ${messages.length} messages but no text content. Message types: ${messages.map(m => m.type).join(', ')}`,
-					messages: messages,
-					debug: {
-						messageCount: messages.length,
-						messageTypes: messages.map(m => m.type),
-						messageKeys: messages.map(m => Object.keys(m))
-					}
+					messages: []
 				}, { status: 500 });
 			}
 
 			return json({ 
 				success: true, 
-				content: textContent,
 				messages: messages 
 			});
 

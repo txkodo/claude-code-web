@@ -8,6 +8,7 @@
 		role: 'user' | 'assistant';
 		content: string;
 		timestamp: Date;
+		rawMessages?: any[];
 	}
 
 	let messages: Message[] = [];
@@ -80,12 +81,15 @@
 				throw new Error(data.error || `HTTP ${response.status}: ${data.details || 'Unknown error'}`);
 			}
 
-			console.log('API call successful. Content length:', data.content?.length);
+			console.log('API call successful. Messages received:', data.messages?.length);
+			
+			const content = data.messages ? extractContentFromMessages(data.messages) : 'レスポンスを取得できませんでした。';
 			
 			const assistantMessage: Message = {
 				role: 'assistant',
-				content: data.content || 'Sorry, I could not generate a response.',
-				timestamp: new Date()
+				content: content,
+				timestamp: new Date(),
+				rawMessages: data.messages || []
 			};
 
 			messages = [...messages, assistantMessage];
@@ -141,6 +145,28 @@
 			minute: '2-digit'
 		});
 	}
+
+	function extractContentFromMessages(messages: any[]): string {
+		let content = '';
+		
+		for (const message of messages) {
+			if (message.type === 'result' && message.result) {
+				content += message.result + '\n\n';
+			} else if (message.type === 'assistant' && message.message?.content) {
+				if (Array.isArray(message.message.content)) {
+					for (const item of message.message.content) {
+						if (item.type === 'text' && item.text) {
+							content += item.text + '\n\n';
+						}
+					}
+				}
+			} else if (message.type === 'text' && message.content) {
+				content += message.content + '\n\n';
+			}
+		}
+		
+		return content.trim() || 'レスポンスを取得できませんでした。';
+	}
 </script>
 
 <div class="card">
@@ -160,6 +186,15 @@
 					<div class="message-content">
 						{message.content}
 					</div>
+					{#if message.rawMessages && message.rawMessages.length > 1}
+						<div class="raw-messages-info">
+							📝 {message.rawMessages.length} メッセージを受信
+							<details>
+								<summary>詳細を表示</summary>
+								<pre class="raw-messages">{JSON.stringify(message.rawMessages, null, 2)}</pre>
+							</details>
+						</div>
+					{/if}
 					<div class="message-time">
 						{formatTimestamp(message.timestamp)}
 					</div>
@@ -333,5 +368,33 @@
 
 	.btn-danger:hover {
 		background: #c82333;
+	}
+
+	.raw-messages-info {
+		margin-top: 8px;
+		font-size: 12px;
+		color: #6b7280;
+	}
+
+	.raw-messages-info details {
+		margin-top: 4px;
+	}
+
+	.raw-messages-info summary {
+		cursor: pointer;
+		color: #3b82f6;
+		text-decoration: underline;
+	}
+
+	.raw-messages {
+		background: #f8f9fa;
+		border: 1px solid #e5e7eb;
+		border-radius: 4px;
+		padding: 8px;
+		margin-top: 4px;
+		font-size: 11px;
+		max-height: 200px;
+		overflow: auto;
+		white-space: pre-wrap;
 	}
 </style>
