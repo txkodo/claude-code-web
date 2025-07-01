@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { query, type SDKMessage } from '@anthropic-ai/claude-code';
 
 	export let directory: string;
 
@@ -42,48 +41,68 @@
 		setTimeout(scrollToBottom, 10);
 
 		try {
-			// Use Claude Code SDK
-			const sdkMessages: SDKMessage[] = [];
-			const prompt = `Working directory: ${directory}\n\n${messageToSend}`;
-			
-			for await (const message of query({
-				prompt,
-				abortController,
-				options: {
-					maxTurns: 3,
+			console.log('Sending request to /api/claude...');
+			console.log('Request payload:', {
+				prompt: messageToSend,
+				directory: directory
+			});
+
+			// Call our API endpoint
+			const response = await fetch('/api/claude', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
 				},
-			})) {
-				sdkMessages.push(message);
-				
-				// Update UI with streaming response
-				if (message.type === 'text') {
-					const lastMessage = messages[messages.length - 1];
-					if (lastMessage && lastMessage.role === 'assistant') {
-						// Update existing assistant message
-						messages = [...messages.slice(0, -1), {
-							...lastMessage,
-							content: lastMessage.content + message.content
-						}];
-					} else {
-						// Create new assistant message
-						const assistantMessage: Message = {
-							role: 'assistant',
-							content: message.content,
-							timestamp: new Date()
-						};
-						messages = [...messages, assistantMessage];
-					}
-					setTimeout(scrollToBottom, 10);
-				}
+				body: JSON.stringify({
+					prompt: messageToSend,
+					directory: directory
+				}),
+				signal: abortController.signal
+			});
+
+			console.log('Response status:', response.status);
+			console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+			const responseText = await response.text();
+			console.log('Raw response:', responseText);
+
+			let data;
+			try {
+				data = JSON.parse(responseText);
+				console.log('Parsed response data:', data);
+			} catch (parseError) {
+				console.error('Failed to parse response as JSON:', parseError);
+				throw new Error(`Invalid JSON response: ${responseText.substring(0, 200)}...`);
 			}
+
+			if (!response.ok) {
+				console.error('API returned error:', data);
+				throw new Error(data.error || `HTTP ${response.status}: ${data.details || 'Unknown error'}`);
+			}
+
+			console.log('API call successful. Content length:', data.content?.length);
+			
+			const assistantMessage: Message = {
+				role: 'assistant',
+				content: data.content || 'Sorry, I could not generate a response.',
+				timestamp: new Date()
+			};
+
+			messages = [...messages, assistantMessage];
 		} catch (error) {
 			if (error instanceof Error && error.name === 'AbortError') {
 				console.log('Request was cancelled');
 			} else {
-				console.error('Error sending message:', error);
+				console.error('Detailed error information:', {
+					message: error instanceof Error ? error.message : 'Unknown error',
+					stack: error instanceof Error ? error.stack : undefined,
+					type: typeof error,
+					error: error
+				});
+				
 				const errorMessage: Message = {
 					role: 'assistant',
-					content: 'エラーが発生しました。再度お試しください。',
+					content: `エラーが発生しました: ${error instanceof Error ? error.message : '不明なエラー'}`,
 					timestamp: new Date()
 				};
 				messages = [...messages, errorMessage];
@@ -94,6 +113,7 @@
 			setTimeout(scrollToBottom, 10);
 		}
 	}
+
 
 
 	function cancelRequest() {
