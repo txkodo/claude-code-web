@@ -19,15 +19,17 @@ export class RealSessionHandler implements SessionHandler {
     return this.#sessionId;
   }
 
-  async pushMessage(massage: UserMessage): Promise<void | Error> {
+  async pushMessage(message: UserMessage): Promise<void | Error> {
     if (this.#busy) {
       return new Error('作業中です.');
     }
     this.#busy = true;
 
     const process = async () => {
+      this.#emitEvent({ type: "push_user_message", message })
+
       const iter = this.#codingAgent.process({
-        prompt: massage.content,
+        prompt: message.content,
         permitAction: (data) => {
           // ID付きのイベントを発行し、ユーザーからの応答を待つ
           const approvalId = crypto.randomUUID();

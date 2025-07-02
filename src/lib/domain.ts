@@ -54,6 +54,7 @@ export interface CodingAgent {
         prompt: string,
         permitAction: (data: any) => Promise<CodingPermission>
     }): AsyncIterable<AgentMessage>;
+    close(): Promise<void>;
 }
 
 export interface CodingAgentFactory {
