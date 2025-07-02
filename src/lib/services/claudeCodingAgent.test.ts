@@ -143,7 +143,8 @@ test('ClaudeCodingAgent handles errors correctly', async () => {
       prompt: 'test prompt',
       permitAction
     });
-    await iterator.next();
+    const asyncIterator = iterator[Symbol.asyncIterator]();
+    await asyncIterator.next();
     expect(false).toBe(true); // Should not reach here
   } catch (error) {
     expect(error).toBe(testError);

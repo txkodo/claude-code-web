@@ -1,4 +1,18 @@
 import type { SessionHandler, SessionHandlerFactory, SessionManager } from "$lib/domain";
+import { ClaudeSessionHandler } from "./claudeSessionHandler";
+import { FakeSessionHandler } from "./fakeSessionHandler";
+
+export class SessionHandlerFactoryFake implements SessionHandlerFactory {
+    createSession(cwd: string, id: string): SessionHandler {
+        return new FakeSessionHandler(id, cwd);
+    }
+}
+
+export class SessionHandlerFactoryClaude implements SessionHandlerFactory {
+    createSession(cwd: string, id: string): SessionHandler {
+        return new ClaudeSessionHandler(id, cwd);
+    }
+}
 
 export class SessionManagerImpl implements SessionManager {
     #sessionMap: Map<string, SessionHandler>;

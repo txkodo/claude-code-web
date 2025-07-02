@@ -4,7 +4,8 @@ import type { CodingAgent, CodingAgentFactory, UserMessage } from '$lib/domain';
 
 test('RealSessionHandler returns correct session ID', () => {
     const mockAgent = {
-        process: mock()
+        process: mock(),
+        close: mock().mockResolvedValue(undefined)
     } as CodingAgent;
 
     const handler = new RealSessionHandler({
@@ -19,7 +20,8 @@ test('RealSessionHandler returns error when busy', async () => {
     const mockAgent = {
         process: mock().mockReturnValue((async function* () {
             yield { type: 'test', content: 'test' };
-        })())
+        })()),
+        close: mock().mockResolvedValue(undefined)
     } as CodingAgent;
 
     const handler = new RealSessionHandler({
@@ -27,7 +29,7 @@ test('RealSessionHandler returns error when busy', async () => {
         agent: mockAgent
     });
 
-    const message: UserMessage = { content: 'test message' };
+    const message: UserMessage = { msgId: crypto.randomUUID(), content: 'test message' };
     
     // First call should start processing
     const result1 = await handler.pushMessage(message);
@@ -44,7 +46,8 @@ test('RealSessionHandler processes message and emits events', async () => {
     const mockAgent = {
         process: mock().mockReturnValue((async function* () {
             yield { type: 'test', content: 'test message' };
-        })())
+        })()),
+        close: mock().mockResolvedValue(undefined)
     } as CodingAgent;
 
     const handler = new RealSessionHandler({
@@ -57,7 +60,7 @@ test('RealSessionHandler processes message and emits events', async () => {
         events.push(event);
     });
 
-    const message: UserMessage = { content: 'test message' };
+    const message: UserMessage = { msgId: crypto.randomUUID(), content: 'test message' };
     await handler.pushMessage(message);
 
     // Wait a bit for async processing
@@ -74,7 +77,8 @@ test('RealSessionHandler event listener unsubscribe works', async () => {
         process: mock().mockReturnValue((async function* () {
             yield { type: 'test1', content: 'message1' };
             yield { type: 'test2', content: 'message2' };
-        })())
+        })()),
+        close: mock().mockResolvedValue(undefined)
     } as CodingAgent;
 
     const handler = new RealSessionHandler({
@@ -91,7 +95,7 @@ test('RealSessionHandler event listener unsubscribe works', async () => {
         }
     });
 
-    const message: UserMessage = { content: 'test message' };
+    const message: UserMessage = { msgId: crypto.randomUUID(), content: 'test message' };
     await handler.pushMessage(message);
 
     // Wait for async processing
@@ -110,7 +114,8 @@ test('RealSessionHandler approval flow emits ask_approval event', async () => {
                 await permitAction({ action: 'test' });
                 yield { type: 'test', content: 'test message' };
             })();
-        })
+        }),
+        close: mock().mockResolvedValue(undefined)
     } as CodingAgent;
 
     const handler = new RealSessionHandler({
@@ -123,7 +128,7 @@ test('RealSessionHandler approval flow emits ask_approval event', async () => {
         events.push(event);
     });
 
-    const message: UserMessage = { content: 'test message' };
+    const message: UserMessage = { msgId: crypto.randomUUID(), content: 'test message' };
     await handler.pushMessage(message);
 
     // Wait for async processing
@@ -137,7 +142,8 @@ test('RealSessionHandler approval flow emits ask_approval event', async () => {
 
 test('RealSessionHandler close method works', async () => {
     const mockAgent = {
-        process: mock()
+        process: mock(),
+        close: mock().mockResolvedValue(undefined)
     } as CodingAgent;
 
     const handler = new RealSessionHandler({
@@ -151,7 +157,8 @@ test('RealSessionHandler close method works', async () => {
 
 test('RealSessionHandlerFactory creates RealSessionHandler', () => {
     const mockAgent = {
-        process: mock()
+        process: mock(),
+        close: mock().mockResolvedValue(undefined)
     } as CodingAgent;
 
     const mockAgentFactory = {
