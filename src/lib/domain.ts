@@ -27,13 +27,7 @@ export type SessionEvent = {
 } | {
     type: "answer_approval",
     approvalId: string;
-    data: {
-        behavior: "allow";
-        updatedInput: any;
-    } | {
-        behavior: "deny";
-        message: string;
-    }
+    data: CodingPermission;
 }
 
 export interface SessionManager {
@@ -51,4 +45,17 @@ export interface SessionHandler {
 
 export interface SessionHandlerFactory {
     createSession(cwd: string, id: string): SessionHandler;
+}
+
+export type CodingPermission = { behavior: "allow"; updatedInput: any; } | { behavior: "deny"; message: string; }
+
+export interface CodingAgent {
+    process(props: {
+        prompt: string,
+        permitAction: (data: any) => Promise<CodingPermission>
+    }): AsyncIterable<AgentMessage>;
+}
+
+export interface CodingAgentFactory {
+    createAgent(cwd: string): CodingAgent;
 }
