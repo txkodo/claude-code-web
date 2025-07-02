@@ -1,4 +1,4 @@
-import type { SessionEvent, SessionHandler, UserMessage } from "$lib/domain";
+import type { SessionEvent, SessionHandler, SessionHandlerFactory, UserMessage } from "$lib/domain";
 
 export class FakeSessionHandler implements SessionHandler {
     #sessionId: string;
@@ -24,3 +24,10 @@ export class FakeSessionHandler implements SessionHandler {
         throw new Error("Method not implemented.");
     }
 }
+
+export class FakeSessionHandlerFactory implements SessionHandlerFactory {
+    createSession(cwd: string, id: string): SessionHandler {
+        return new FakeSessionHandler(id, cwd);
+    }
+}
+　

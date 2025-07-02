@@ -1,4 +1,4 @@
-import type { SessionEvent, SessionHandler, UserMessage } from "$lib/domain";
+import type { SessionEvent, SessionHandler, SessionHandlerFactory, UserMessage } from "$lib/domain";
 import { query } from '@anthropic-ai/claude-code';
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -145,5 +145,11 @@ export class ClaudeSessionHandler implements SessionHandler {
 
   async close() {
     await this.#mcp.close()
+  }
+}
+
+export class ClaudeSessionHandlerFactory implements SessionHandlerFactory {
+  createSession(cwd: string, id: string): SessionHandler {
+    return new ClaudeSessionHandler(id, cwd);
   }
 }

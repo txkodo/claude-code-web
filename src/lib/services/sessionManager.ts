@@ -1,22 +1,4 @@
-import type { SessionHandler, SessionManager } from "$lib/domain";
-import { ClaudeSessionHandler } from "./claudeSessionHandler";
-import { FakeSessionHandler } from "./fakeSessionHandler";
-
-export interface SessionHandlerFactory {
-    createSession(cwd: string, id: string): SessionHandler;
-}
-
-export class SessionHandlerFactoryFake implements SessionHandlerFactory {
-    createSession(cwd: string, id: string): SessionHandler {
-        return new FakeSessionHandler(id, cwd);
-    }
-}
-
-export class SessionHandlerFactoryClaude implements SessionHandlerFactory {
-    createSession(cwd: string, id: string): SessionHandler {
-        return new ClaudeSessionHandler(id, cwd);
-    }
-}
+import type { SessionHandler, SessionHandlerFactory, SessionManager } from "$lib/domain";
 
 export class SessionManagerImpl implements SessionManager {
     #sessionMap: Map<string, SessionHandler>;
@@ -38,3 +20,4 @@ export class SessionManagerImpl implements SessionManager {
         return Array.from(this.#sessionMap.keys());
     }
 }
+

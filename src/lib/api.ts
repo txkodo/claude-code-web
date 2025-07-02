@@ -8,7 +8,9 @@ import { sValidator } from '@hono/standard-validator'
 import { createBunWebSocket } from 'hono/bun';
 import type { ServerWebSocket } from 'bun'
 
-export const sessionManager: SessionManager = new SessionManagerImpl();
+import { SessionHandlerFactoryFake } from "./services/sessionManager";
+
+export const sessionManager: SessionManager = new SessionManagerImpl(new SessionHandlerFactoryFake());
 
 const { upgradeWebSocket, websocket } = createBunWebSocket<ServerWebSocket>()
 

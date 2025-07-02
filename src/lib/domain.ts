@@ -48,3 +48,7 @@ export interface SessionHandler {
     listenEvent(listener: (event: SessionEvent, unsubnscribe: () => void) => void): { unsubscribe(): void };
     close(): Promise<void>;
 }
+
+export interface SessionHandlerFactory {
+    createSession(cwd: string, id: string): SessionHandler;
+}
