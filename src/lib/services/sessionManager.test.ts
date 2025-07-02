@@ -1,7 +1,7 @@
 import { test, expect, mock } from 'bun:test';
 import { SessionManagerImpl } from './sessionManager';
 
-test('SessionManagerImpl creates session with unique ID', () => {
+test('SessionManagerImplが一意のIDでセッションを作成する', () => {
     const mockFactory = {
         createSession: mock().mockReturnValue({ id: 'mock-handler' })
     };
@@ -14,7 +14,7 @@ test('SessionManagerImpl creates session with unique ID', () => {
     expect(mockFactory.createSession).toHaveBeenCalledWith('/test/cwd', sessionId);
 });
 
-test('SessionManagerImpl stores and retrieves sessions', () => {
+test('SessionManagerImplがセッションを保存・取得する', () => {
     const mockHandler = { id: 'mock-handler' };
     const mockFactory = {
         createSession: mock().mockReturnValue(mockHandler)
@@ -27,7 +27,7 @@ test('SessionManagerImpl stores and retrieves sessions', () => {
     expect(retrievedHandler).toBe(mockHandler as any);
 });
 
-test('SessionManagerImpl returns null for non-existent session', () => {
+test('SessionManagerImplが存在しないセッションでnullを返す', () => {
     const mockFactory = {
         createSession: mock()
     };
@@ -38,7 +38,7 @@ test('SessionManagerImpl returns null for non-existent session', () => {
     expect(result).toBeNull();
 });
 
-test('SessionManagerImpl lists all session IDs', () => {
+test('SessionManagerImplが全セッションIDをリスト表示する', () => {
     const mockFactory = {
         createSession: mock().mockReturnValue({ id: 'mock-handler' })
     };
@@ -53,7 +53,7 @@ test('SessionManagerImpl lists all session IDs', () => {
     expect(sessionList).toHaveLength(2);
 });
 
-test('SessionManagerImpl generates unique session IDs', () => {
+test('SessionManagerImplが一意のセッションIDを生成する', () => {
     const mockFactory = {
         createSession: mock().mockReturnValue({ id: 'mock-handler' })
     };

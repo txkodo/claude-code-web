@@ -8,27 +8,44 @@ export type AgentMessage = {
     content: string;
 }
 
-export type SessionEvent = {
-    type: "push_user_message",
-    message: UserMessage
-} | {
-    type: "push_agent_message",
-    message: AgentMessage
-} | {
-    type: "update_agent_message",
-    message: AgentMessage
-} | {
-    type: "delete_agent_message",
-    message: AgentMessage
-} | {
-    type: "ask_approval",
-    approvalId: string;
-    data: any;
-} | {
-    type: "answer_approval",
-    approvalId: string;
-    data: CodingPermission;
+
+export type SessionEvent =
+    | SessionEvent.PushUserMessage
+    | SessionEvent.PushAgentMessage
+    | SessionEvent.UpdateAgentMessage
+    | SessionEvent.DeleteAgentMessage
+    | SessionEvent.AskApproval
+    | SessionEvent.AnswerApproval;
+
+export namespace SessionEvent {
+    export type PushUserMessage = {
+        type: "push_user_message",
+        message: UserMessage
+    }
+    export type PushAgentMessage = {
+        type: "push_agent_message",
+        message: AgentMessage
+    }
+    export type UpdateAgentMessage = {
+        type: "update_agent_message",
+        message: AgentMessage
+    }
+    export type DeleteAgentMessage = {
+        type: "delete_agent_message",
+        message: AgentMessage
+    }
+    export type AskApproval = {
+        type: "ask_approval",
+        approvalId: string;
+        data: any;
+    }
+    export type AnswerApproval = {
+        type: "answer_approval",
+        approvalId: string;
+        data: CodingPermission;
+    }
 }
+
 
 export interface SessionManager {
     getSessionById(sessionId: string): SessionHandler | null;
@@ -40,6 +57,7 @@ export interface SessionHandler {
     sessionId(): string;
     pushMessage(massage: UserMessage): Promise<void | Error>;
     listenEvent(listener: (event: SessionEvent, unsubnscribe: () => void) => void): { unsubscribe(): void };
+    answerApproval(approvalId: string, data: CodingPermission): Promise<void>;
     close(): Promise<void>;
 }
 

@@ -44,12 +44,12 @@ mock.module('zod', () => ({
 
 const { ClaudeCodingAgent, ClaudeCodingAgentFactory } = await import('./claudeCodingAgent');
 
-test('ClaudeCodingAgent constructor initializes correctly', () => {
+test('ClaudeCodingAgentのコンストラクタが正しく初期化される', () => {
   const agent = new ClaudeCodingAgent('/test/cwd');
   expect(agent).toBeInstanceOf(ClaudeCodingAgent);
 });
 
-test('ClaudeCodingAgent processes messages correctly', async () => {
+test('ClaudeCodingAgentがメッセージを正しく処理する', async () => {
   const mockMessages = [
     { type: 'text', content: 'Hello' },
     { type: 'result', content: 'Done' }
@@ -80,11 +80,11 @@ test('ClaudeCodingAgent processes messages correctly', async () => {
   await agent.close();
 });
 
-test('ClaudeCodingAgent handles session resumption', async () => {
-  // Reset mock call count
+test('ClaudeCodingAgentがセッション再開を処理する', async () => {
+  // モック呼び出し回数をリセット
   mockQuery.mockClear();
   
-  // Mock two separate calls
+  // 2つの別々の呼び出しをモック
   mockQuery
     .mockReturnValueOnce((async function* () {
       yield { type: 'session_id', sessionId: 'test-session-123' };
@@ -97,7 +97,7 @@ test('ClaudeCodingAgent handles session resumption', async () => {
   const agent = new ClaudeCodingAgent('/test/cwd');
   const permitAction = mock().mockResolvedValue({ behavior: 'allow', updatedInput: {} });
 
-  // First process
+  // 最初の処理
   const iterator1 = agent.process({
     prompt: 'first prompt',
     permitAction
@@ -110,7 +110,7 @@ test('ClaudeCodingAgent handles session resumption', async () => {
 
   expect(results1).toHaveLength(2);
 
-  // Second process should use saved session ID
+  // 2回目の処理では保存されたセッションIDが使用される
   const iterator2 = agent.process({
     prompt: 'second prompt',
     permitAction
@@ -123,13 +123,13 @@ test('ClaudeCodingAgent handles session resumption', async () => {
 
   expect(results2).toHaveLength(1);
 
-  // Verify that query was called twice for this test
+  // このテストでqueryが2回呼ばれたことを確認
   expect(mockQuery).toHaveBeenCalledTimes(2);
 
   await agent.close();
 });
 
-test('ClaudeCodingAgent handles errors correctly', async () => {
+test('ClaudeCodingAgentがエラーを正しく処理する', async () => {
   const testError = new Error('Test error');
   mockQuery.mockReturnValue((async function* () {
     throw testError;
@@ -145,7 +145,7 @@ test('ClaudeCodingAgent handles errors correctly', async () => {
     });
     const asyncIterator = iterator[Symbol.asyncIterator]();
     await asyncIterator.next();
-    expect(false).toBe(true); // Should not reach here
+    expect(false).toBe(true); // ここに到達すべきではない
   } catch (error) {
     expect(error).toBe(testError);
   }
@@ -153,22 +153,22 @@ test('ClaudeCodingAgent handles errors correctly', async () => {
   await agent.close();
 });
 
-test('ClaudeCodingAgent close method works correctly', async () => {
+test('ClaudeCodingAgentのcloseメソッドが正しく動作する', async () => {
   const agent = new ClaudeCodingAgent('/test/cwd');
   
-  // close should not throw
+  // closeは例外を投げない
   await expect(agent.close()).resolves.toBeUndefined();
 });
 
-test('ClaudeCodingAgentFactory creates ClaudeCodingAgent', () => {
+test('ClaudeCodingAgentFactoryがClaudeCodingAgentを作成する', () => {
   const factory = new ClaudeCodingAgentFactory();
   const agent = factory.createAgent('/test/cwd');
 
   expect(agent).toBeInstanceOf(ClaudeCodingAgent);
 });
 
-test('ClaudeCodingAgent basic functionality works', async () => {
-  // Simple test to verify basic iteration
+test('ClaudeCodingAgentの基本機能が動作する', async () => {
+  // 基本的な反復を確認するシンプルなテスト
   mockQuery.mockReturnValue((async function* () {
     yield { type: 'start', content: 'Starting' };
     yield { type: 'end', content: 'Finished' };

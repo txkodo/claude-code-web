@@ -54,6 +54,10 @@ export class RealSessionHandler implements SessionHandler {
     process()
   }
 
+  async answerApproval(approvalId: string, data: CodingPermission): Promise<void> {
+    this.#emitEvent({ type: "answer_approval", approvalId, data });
+  }
+
   listenEvent(listener: (event: SessionEvent, unsubnscribe: () => void) => void): { unsubscribe(): void; } {
     let unsubscribe = () => { }
     let _listener = (event: SessionEvent) => listener(event, unsubscribe);
