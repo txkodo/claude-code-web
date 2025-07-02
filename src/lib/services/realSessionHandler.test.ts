@@ -40,7 +40,7 @@ test('RealSessionHandlerがビジー時にエラーを返す', async () => {
     expect(await handler.pushMessage(message)).toBeInstanceOf(Error);
 
     // 処理終わったはず
-    sleep(20);
+    await sleep(20);
     expect(await handler.pushMessage(message)).toBeUndefined();
 });
 
@@ -68,10 +68,11 @@ test('RealSessionHandlerがメッセージを処理してイベントを発行�
     // 非同期処理を少し待つ
     await new Promise(resolve => setTimeout(resolve, 10));
 
-    expect(events).toHaveLength(1);
-    expect(events[0].type).toBe('push_agent_message');
-    expect(events[0].message).toHaveProperty('msgId');
-    expect(events[0].message.content).toBe('{"type":"test","content":"test message"}');
+    expect(events).toHaveLength(2);
+    expect(events[0].type).toBe('push_user_message');
+    expect(events[1].type).toBe('push_agent_message');
+    expect(events[1].message).toHaveProperty('msgId');
+    expect(events[1].message.content).toBe('{"type":"test","content":"test message"}');
 });
 
 test('RealSessionHandlerのイベントリスナー登録解除が動作する', async () => {
@@ -105,7 +106,7 @@ test('RealSessionHandlerのイベントリスナー登録解除が動作する',
 
     // 登録解除により最初のイベントのみ受信する
     expect(events).toHaveLength(1);
-    expect(events[0].type).toBe('push_agent_message');
+    expect(events[0].type).toBe('push_user_message');
 });
 
 test('RealSessionHandlerの承認フローがask_approvalイベントを発行する', async () => {

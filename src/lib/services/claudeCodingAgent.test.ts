@@ -55,19 +55,19 @@ test('ClaudeCodingAgentがメッセージを正しく処理する', async () => 
     { type: 'result', content: 'Done' }
   ];
 
-  mockQuery.mockReturnValue((async function* () {
+  mockQuery.mockImplementationOnce(async function* ({ options }) {
+    expect(options.cwd).toBe('/test/cwd');
     for (const msg of mockMessages) {
       yield msg;
     }
-  })());
+  });
 
   const agent = new ClaudeCodingAgent('/test/cwd');
-  const permitAction = mock().mockResolvedValue({ behavior: 'allow', updatedInput: {} });
 
   const results = [];
   for await (const message of agent.process({
     prompt: 'test prompt',
-    permitAction
+    permitAction: () => { throw new Error('Not implemented') }
   })) {
     results.push(message);
   }
@@ -83,16 +83,18 @@ test('ClaudeCodingAgentがメッセージを正しく処理する', async () => 
 test('ClaudeCodingAgentがセッション再開を処理する', async () => {
   // モック呼び出し回数をリセット
   mockQuery.mockClear();
-  
+
   // 2つの別々の呼び出しをモック
   mockQuery
-    .mockReturnValueOnce((async function* () {
-      yield { type: 'session_id', sessionId: 'test-session-123' };
+    .mockImplementationOnce(async function* ({ options }) {
+      expect(options.resume).toBe(undefined)
+      yield { type: 'session_id', session_id: 'test-session-123' };
       yield { type: 'text', content: 'First message' };
-    })())
-    .mockReturnValueOnce((async function* () {
+    })
+    .mockImplementationOnce(async function* ({ options }) {
+      expect(options.resume).toBe('test-session-123')
       yield { type: 'text', content: 'Second message' };
-    })());
+    });
 
   const agent = new ClaudeCodingAgent('/test/cwd');
   const permitAction = mock().mockResolvedValue({ behavior: 'allow', updatedInput: {} });
@@ -155,7 +157,7 @@ test('ClaudeCodingAgentがエラーを正しく処理する', async () => {
 
 test('ClaudeCodingAgentのcloseメソッドが正しく動作する', async () => {
   const agent = new ClaudeCodingAgent('/test/cwd');
-  
+
   // closeは例外を投げない
   await expect(agent.close()).resolves.toBeUndefined();
 });

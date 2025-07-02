@@ -46,8 +46,8 @@ export class ClaudeCodingAgent implements CodingAgent {
         }
       })) {
         // セッションIDを保存（再開可能にするため）
-        if ('sessionId' in sdkMessage) {
-          this.#claudeCodeSessionId = (sdkMessage as any).sessionId;
+        if (sdkMessage.session_id) {
+          this.#claudeCodeSessionId = sdkMessage.session_id;
         }
 
         // メッセージを適切な形式に変換して yield
