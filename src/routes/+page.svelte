@@ -2,12 +2,10 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import DirectorySelector from '$lib/DirectorySelector.svelte';
-	import type { ChatSession } from '$lib/sessionManager';
 
-	let sessions: ChatSession[] = [];
+	let sessionIds: string[] = [];
 	let isLoading = false;
 	let showCreateForm = false;
-	let newSessionName = '';
 	let selectedDirectory = '';
 
 	onMount(async () => {
@@ -17,9 +15,10 @@
 	async function loadSessions() {
 		isLoading = true;
 		try {
-			const response = await fetch('/api/sessions');
+			const response = await fetch('/api/session');
 			if (response.ok) {
-				sessions = await response.json();
+				const data = await response.json();
+				sessionIds = data.sessionIds;
 			}
 		} catch (error) {
 			console.error('Failed to load sessions:', error);
@@ -29,44 +28,28 @@
 	}
 
 	async function createSession() {
-		if (!newSessionName.trim() || !selectedDirectory) return;
+		if (!selectedDirectory) return;
 
 		try {
-			const response = await fetch('/api/sessions', {
+			const response = await fetch('/api/session', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
-					name: newSessionName.trim(),
 					cwd: selectedDirectory
 				})
 			});
 
 			if (response.ok) {
-				const session = await response.json();
-				goto(`/${session.id}`);
+				const data = await response.json();
+				goto(`/${data.sessionId}`);
 			}
 		} catch (error) {
 			console.error('Failed to create session:', error);
 		}
 	}
 
-	async function deleteSession(sessionId: string) {
-		if (!confirm('このセッションを削除しますか？')) return;
-
-		try {
-			const response = await fetch(`/api/sessions/${sessionId}`, {
-				method: 'DELETE'
-			});
-
-			if (response.ok) {
-				await loadSessions();
-			}
-		} catch (error) {
-			console.error('Failed to delete session:', error);
-		}
-	}
 
 	function handleDirectorySelect(event: CustomEvent<string>) {
 		selectedDirectory = event.detail;
@@ -95,17 +78,6 @@
 			{#if showCreateForm}
 				<div class="card create-session">
 					<h3>新しいセッションを作成</h3>
-					
-					<div class="form-group">
-						<label for="session-name">セッション名:</label>
-						<input
-							id="session-name"
-							type="text"
-							bind:value={newSessionName}
-							placeholder="例: プロジェクトA開発"
-							class="input"
-						/>
-					</div>
 
 					<DirectorySelector on:directorySelected={handleDirectorySelect} />
 					
@@ -119,7 +91,7 @@
 						<button 
 							class="btn" 
 							on:click={createSession}
-							disabled={!newSessionName.trim() || !selectedDirectory}
+							disabled={!selectedDirectory}
 						>
 							セッションを作成
 						</button>
@@ -127,30 +99,19 @@
 				</div>
 			{/if}
 
-			{#if sessions.length === 0}
+			{#if sessionIds.length === 0}
 				<div class="empty-state">
 					<p>セッションがありません。新しいセッションを作成してください。</p>
 				</div>
 			{:else}
 				<div class="sessions-grid">
-					{#each sessions as session}
+					{#each sessionIds as sessionId}
 						<div class="session-card">
 							<div class="session-header">
-								<h3>{session.name}</h3>
-								<button 
-									class="btn-icon btn-danger" 
-									on:click={() => deleteSession(session.id)}
-								>
-									削除
-								</button>
-							</div>
-							<div class="session-info">
-								<p><strong>ディレクトリ:</strong> {session.cwd}</p>
-								<p><strong>メッセージ数:</strong> {session.messageCount}</p>
-								<p><strong>最終使用:</strong> {formatDate(session.lastUsed)}</p>
+								<h3>セッション {sessionId}</h3>
 							</div>
 							<div class="session-actions">
-								<button class="btn" on:click={() => goto(`/${session.id}`)}>
+								<button class="btn" on:click={() => goto(`/${sessionId}`)}>
 									チャットを開く
 								</button>
 							</div>

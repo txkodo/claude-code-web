@@ -3,9 +3,8 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import ChatInterface from '$lib/ChatInterface.svelte';
-	import type { ChatSession } from '$lib/sessionManager';
 
-	let session: ChatSession | null = null;
+	let sessionExists = false;
 	let isLoading = true;
 	let error: string | null = null;
 
@@ -22,11 +21,13 @@
 		error = null;
 		
 		try {
-			const response = await fetch(`/api/sessions/${sessionId}`);
+			const response = await fetch('/api/session');
 			if (response.ok) {
-				session = await response.json();
-			} else if (response.status === 404) {
-				error = 'セッションが見つかりません';
+				const data = await response.json();
+				sessionExists = data.sessionIds.includes(sessionId);
+				if (!sessionExists) {
+					error = 'セッションが見つかりません';
+				}
 			} else {
 				error = 'セッションの読み込みに失敗しました';
 			}
@@ -54,20 +55,17 @@
 				セッション一覧に戻る
 			</button>
 		</div>
-	{:else if session}
+	{:else if sessionExists}
 		<div class="session-header">
 			<div class="session-info">
-				<h1>{session.name}</h1>
-				<p class="session-details">
-					<strong>ディレクトリ:</strong> {session.cwd}
-				</p>
+				<h1>セッション {sessionId}</h1>
 			</div>
 			<button class="btn btn-secondary" on:click={goBack}>
 				セッション一覧に戻る
 			</button>
 		</div>
 
-		<ChatInterface directory={session.cwd} {sessionId} />
+		<ChatInterface {sessionId} />
 	{:else}
 		<div class="error-state">
 			<h2>セッションが見つかりません</h2>

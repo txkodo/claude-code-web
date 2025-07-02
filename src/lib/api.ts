@@ -7,10 +7,10 @@ import { z } from 'zod';
 import { sValidator } from '@hono/standard-validator'
 import { createBunWebSocket } from 'hono/bun';
 import type { ServerWebSocket } from 'bun'
+import { RealSessionHandlerFactory } from './services/realSessionHandler';
+import { ClaudeCodingAgentFactory } from './services/claudeCodingAgent';
 
-import { SessionHandlerFactoryFake } from "./services/sessionManager";
-
-export const sessionManager: SessionManager = new SessionManagerImpl(new SessionHandlerFactoryFake());
+export const sessionManager: SessionManager = new SessionManagerImpl(new RealSessionHandlerFactory(new ClaudeCodingAgentFactory()));
 
 const { upgradeWebSocket, websocket } = createBunWebSocket<ServerWebSocket>()
 
@@ -39,6 +39,7 @@ const router = new Hono()
                     handler?.pushMessage(JSON.parse(event.data.toString()))
                 },
                 onClose: () => {
+                    unsubscribe?.();
                     console.log('Connection closed')
                 },
             }

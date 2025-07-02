@@ -1,21 +1,78 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	export let directory: string;
-	export let sessionId: string | undefined = undefined;
+	export let sessionId: string;
 
 	interface Message {
 		role: 'user' | 'assistant';
 		content: string;
 		timestamp: Date;
-		rawMessages?: any[];
 	}
 
 	let messages: Message[] = [];
 	let currentMessage = '';
 	let isLoading = false;
-	let abortController: AbortController | null = null;
+	let websocket: WebSocket | null = null;
 	let messagesContainer: HTMLElement;
+	let isConnected = false;
+
+	onMount(() => {
+		connectWebSocket();
+		return () => {
+			if (websocket) {
+				websocket.close();
+			}
+		};
+	});
+
+	function connectWebSocket() {
+		const wsUrl = `ws://${window.location.host}/api/session/${sessionId}/ws`;
+		websocket = new WebSocket(wsUrl);
+
+		websocket.onopen = () => {
+			console.log('WebSocket connected');
+			isConnected = true;
+		};
+
+		websocket.onmessage = (event) => {
+			const sessionEvent = JSON.parse(event.data);
+			handleSessionEvent(sessionEvent);
+		};
+
+		websocket.onclose = () => {
+			console.log('WebSocket disconnected');
+			isConnected = false;
+		};
+
+		websocket.onerror = (error) => {
+			console.error('WebSocket error:', error);
+			isConnected = false;
+		};
+	}
+
+	function handleSessionEvent(event: any) {
+		switch (event.type) {
+			case 'push_user_message':
+				messages = [...messages, {
+					role: 'user',
+					content: event.message.content,
+					timestamp: new Date()
+				}];
+				break;
+			case 'push_agent_message':
+				messages = [...messages, {
+					role: 'assistant',
+					content: event.message.content,
+					timestamp: new Date()
+				}];
+				break;
+			case 'ask_approval':
+				// TODO: 承認ダイアログの実装
+				console.log('Approval requested:', event);
+				break;
+		}
+		setTimeout(scrollToBottom, 10);
+	}
 
 	function scrollToBottom() {
 		if (messagesContainer) {
@@ -23,109 +80,23 @@
 		}
 	}
 
-	async function sendMessage() {
-		if (!currentMessage.trim() || isLoading) return;
+	function sendMessage() {
+		if (!currentMessage.trim() || !isConnected || isLoading) return;
 
-		const userMessage: Message = {
-			role: 'user',
-			content: currentMessage.trim(),
-			timestamp: new Date()
+		const message = {
+			msgId: crypto.randomUUID(),
+			content: currentMessage.trim()
 		};
 
-		messages = [...messages, userMessage];
-		const messageToSend = currentMessage.trim();
+		websocket?.send(JSON.stringify(message));
 		currentMessage = '';
 		isLoading = true;
-
-		// Create new AbortController for this request
-		abortController = new AbortController();
-
-		setTimeout(scrollToBottom, 10);
-
-		try {
-			console.log('Sending request to /api/claude...');
-			const requestPayload = {
-				prompt: messageToSend,
-				directory: directory,
-				...(sessionId && { sessionId })
-			};
-			console.log('Request payload:', requestPayload);
-
-			// Call our API endpoint
-			const response = await fetch('/api/claude', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify(requestPayload),
-				signal: abortController.signal
-			});
-
-			console.log('Response status:', response.status);
-			console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-			const responseText = await response.text();
-			console.log('Raw response:', responseText);
-
-			let data;
-			try {
-				data = JSON.parse(responseText);
-				console.log('Parsed response data:', data);
-			} catch (parseError) {
-				console.error('Failed to parse response as JSON:', parseError);
-				throw new Error(`Invalid JSON response: ${responseText.substring(0, 200)}...`);
-			}
-
-			if (!response.ok) {
-				console.error('API returned error:', data);
-				throw new Error(data.error || `HTTP ${response.status}: ${data.details || 'Unknown error'}`);
-			}
-
-			console.log('API call successful. Messages received:', data.messages?.length);
-			
-			const content = data.messages ? extractContentFromMessages(data.messages) : 'レスポンスを取得できませんでした。';
-			
-			const assistantMessage: Message = {
-				role: 'assistant',
-				content: content,
-				timestamp: new Date(),
-				rawMessages: data.messages || []
-			};
-
-			messages = [...messages, assistantMessage];
-		} catch (error) {
-			if (error instanceof Error && error.name === 'AbortError') {
-				console.log('Request was cancelled');
-			} else {
-				console.error('Detailed error information:', {
-					message: error instanceof Error ? error.message : 'Unknown error',
-					stack: error instanceof Error ? error.stack : undefined,
-					type: typeof error,
-					error: error
-				});
-				
-				const errorMessage: Message = {
-					role: 'assistant',
-					content: `エラーが発生しました: ${error instanceof Error ? error.message : '不明なエラー'}`,
-					timestamp: new Date()
-				};
-				messages = [...messages, errorMessage];
-			}
-		} finally {
-			isLoading = false;
-			abortController = null;
-			setTimeout(scrollToBottom, 10);
-		}
 	}
 
 
 
 	function cancelRequest() {
-		if (abortController) {
-			abortController.abort();
-			abortController = null;
-			isLoading = false;
-		}
+		isLoading = false;
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
@@ -146,27 +117,6 @@
 		});
 	}
 
-	function extractContentFromMessages(messages: any[]): string {
-		let content = '';
-		
-		for (const message of messages) {
-			if (message.type === 'result' && message.result) {
-				content += message.result + '\n\n';
-			} else if (message.type === 'assistant' && message.message?.content) {
-				if (Array.isArray(message.message.content)) {
-					for (const item of message.message.content) {
-						if (item.type === 'text' && item.text) {
-							content += item.text + '\n\n';
-						}
-					}
-				}
-			} else if (message.type === 'text' && message.content) {
-				content += message.content + '\n\n';
-			}
-		}
-		
-		return content.trim() || 'レスポンスを取得できませんでした。';
-	}
 </script>
 
 <div class="card">
@@ -186,15 +136,6 @@
 					<div class="message-content">
 						{message.content}
 					</div>
-					{#if message.rawMessages && message.rawMessages.length > 1}
-						<div class="raw-messages-info">
-							📝 {message.rawMessages.length} メッセージを受信
-							<details>
-								<summary>詳細を表示</summary>
-								<pre class="raw-messages">{JSON.stringify(message.rawMessages, null, 2)}</pre>
-							</details>
-						</div>
-					{/if}
 					<div class="message-time">
 						{formatTimestamp(message.timestamp)}
 					</div>
@@ -229,8 +170,8 @@
 					キャンセル
 				</button>
 			{:else}
-				<button class="btn" on:click={sendMessage} disabled={!currentMessage.trim()}>
-					送信
+				<button class="btn" on:click={sendMessage} disabled={!currentMessage.trim() || !isConnected}>
+					{isConnected ? '送信' : '接続中...'}
 				</button>
 			{/if}
 		</div>
