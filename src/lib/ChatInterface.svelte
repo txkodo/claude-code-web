@@ -16,8 +16,8 @@
 	let messagesContainer: HTMLElement;
 	let isConnected = false;
 
-	onMount(() => {
-		connectWebSocket();
+	onMount(async () => {
+		await connectWebSocket();
 		return () => {
 			if (websocket) {
 				websocket.close();
@@ -25,8 +25,9 @@
 		};
 	});
 
-	function connectWebSocket() {
-		const wsUrl = `ws://${window.location.host}/api/session/${sessionId}/ws`;
+	async function connectWebSocket() {
+		const { getWebSocketUrl } = await import('$lib/api');
+		const wsUrl = getWebSocketUrl(sessionId);
 		websocket = new WebSocket(wsUrl);
 
 		websocket.onopen = () => {

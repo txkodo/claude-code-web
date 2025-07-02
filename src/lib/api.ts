@@ -1,51 +1,43 @@
-// https://qiita.com/Kanahiro/items/b109d944f09afd02e57f
+// クライアント側でのAPI呼び出し用ヘルパー関数
+// APIサーバーが分離されたため、フェッチを行う関数を提供
 
-import { Hono } from 'hono';
-import type { SessionManager } from "./domain";
-import { SessionManagerImpl } from "./services/sessionManager";
-import { z } from 'zod';
-import { sValidator } from '@hono/standard-validator'
-import { createBunWebSocket } from 'hono/bun';
-import type { ServerWebSocket } from 'bun'
-import { RealSessionHandlerFactory } from './services/realSessionHandler';
-import { ClaudeCodingAgentFactory } from './services/claudeCodingAgent';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
-export const sessionManager: SessionManager = new SessionManagerImpl(new RealSessionHandlerFactory(new ClaudeCodingAgentFactory()));
+export async function createSession(cwd: string): Promise<{ sessionId: string }> {
+    const response = await fetch(`${API_BASE_URL}/session`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ cwd }),
+    });
+    
+    if (!response.ok) {
+        throw new Error(`Failed to create session: ${response.statusText}`);
+    }
+    
+    return response.json();
+}
 
-const { upgradeWebSocket, websocket } = createBunWebSocket<ServerWebSocket>()
+export async function listSessions(): Promise<{ sessionIds: string[] }> {
+    const response = await fetch(`${API_BASE_URL}/session`);
+    
+    if (!response.ok) {
+        throw new Error(`Failed to list sessions: ${response.statusText}`);
+    }
+    
+    return response.json();
+}
 
-// API定義
-const router = new Hono()
-    .post('/session',
-        sValidator("json", z.object({ cwd: z.string() })),
-        async (c) => {
-            const id = await sessionManager.createSession(c.req.valid('json').cwd);
-            return c.json({ sessionId: id });
-        })
-    .get('/session', async (c) => {
-        const sessions = await sessionManager.listSessions();
-        return c.json({ sessionIds: sessions });
-    })
-    .get('/session/[id]/ws',
-        upgradeWebSocket((c) => {
-            const handler = sessionManager.getSessionById(c.req.param('id'));
-            let unsubscribe: (() => void) | undefined = undefined;
-            return {
-                onOpen(evt, ws) {
-                    console.log('Connection opened', evt);
-                    unsubscribe = handler?.listenEvent(event => { ws.send(JSON.stringify(event)); })?.unsubscribe;
-                },
-                onMessage(event, ws) {
-                    handler?.pushMessage(JSON.parse(event.data.toString()))
-                },
-                onClose: () => {
-                    unsubscribe?.();
-                    console.log('Connection closed')
-                },
-            }
-        })
-    );
-
-export const app = new Hono().route('/api', router);
-
-export type Router = typeof router;
+export function getWebSocketUrl(sessionId: string): string {
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    
+    // プロキシ経由でアクセスする場合は同じホストの WebSocket を使用
+    if (API_BASE_URL.startsWith('/')) {
+        return `${wsProtocol}//${window.location.host}${API_BASE_URL}/session/${sessionId}/ws`;
+    } else {
+        // 直接APIサーバーにアクセスする場合
+        const wsBaseUrl = API_BASE_URL.replace(/^https?:/, wsProtocol);
+        return `${wsBaseUrl}/session/${sessionId}/ws`;
+    }
+}
