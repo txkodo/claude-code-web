@@ -50,6 +50,11 @@ export class ClaudeCodingAgent implements CodingAgent {
         switch (sdkMessage.type) {
           case "system":
           case "assistant":
+            yield {
+              type: "text",
+              msgId: crypto.randomUUID(),
+              content: JSON.stringify(sdkMessage)
+            };
             break;
           case "user":
             // ツール結果を個別に処理
