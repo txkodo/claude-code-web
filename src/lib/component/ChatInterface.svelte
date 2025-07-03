@@ -6,7 +6,9 @@
 
 	interface Message {
 		role: "user" | "assistant";
-		content: string;
+		content?: string;
+		toolOutput?: { type: "image"; uri: string; } | { type: "text"; text: string; };
+		type?: "text" | "tool_result";
 	}
 
 	interface ApprovalRequest {
@@ -82,13 +84,26 @@
 					];
 					break;
 				case "push_agent_message":
-					messages = [
-						...messages,
-						{
-							role: "assistant",
-							content: data.event.message.content,
-						},
-					];
+					const agentMessage = data.event.message;
+					if (agentMessage.type === "tool_result") {
+						messages = [
+							...messages,
+							{
+								role: "assistant",
+								type: "tool_result",
+								toolOutput: agentMessage.toolOutput,
+							},
+						];
+					} else {
+						messages = [
+							...messages,
+							{
+								role: "assistant",
+								type: "text",
+								content: agentMessage.content,
+							},
+						];
+					}
 					break;
 				case "ask_approval":
 					pendingApproval = {
@@ -173,11 +188,21 @@
 	<div class="chat-container">
 		<div class="messages" bind:this={messagesContainer}>
 			{#each messages as message}
-				<div class="message {message.role}">
-					<div class="message-content">
-						{message.content}
+				{#if message.type === "tool_result"}
+					<div class="message {message.role} tool-result">
+						{#if message.toolOutput?.type === "text"}
+							<pre class="tool-output-text">{message.toolOutput.text}</pre>
+						{:else if message.toolOutput?.type === "image"}
+							<img src={message.toolOutput.uri} alt="ツール実行結果の画像" class="tool-result-image" />
+						{/if}
 					</div>
-				</div>
+				{:else}
+					<div class="message {message.role}">
+						<div class="message-content">
+							{message.content}
+						</div>
+					</div>
+				{/if}
 			{/each}
 		</div>
 
@@ -435,5 +460,36 @@
 
 	.btn-primary:hover {
 		background: #0056b3;
+	}
+
+	.message.tool-result {
+		background: #f0f9ff;
+		border: 1px solid #0ea5e9;
+		border-radius: 8px;
+		margin: 12px 0;
+		padding: 16px;
+	}
+
+	.message.tool-result .tool-output-text {
+		background: #ffffff;
+		border-radius: 6px;
+		padding: 16px;
+		font-size: 14px;
+		overflow-x: auto;
+		margin: 0;
+		color: #1f2937;
+		line-height: 1.5;
+		white-space: pre-wrap;
+		word-wrap: break-word;
+		font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+	}
+
+	.message.tool-result .tool-result-image {
+		max-width: 100%;
+		max-height: 500px;
+		border-radius: 6px;
+		object-fit: contain;
+		display: block;
+		margin: 0 auto;
 	}
 </style>

@@ -1,10 +1,5 @@
 import type { AgentMessage, CodingAgent, CodingAgentFactory, CodingPermission } from "$lib/server/domain";
 import { query } from '@anthropic-ai/claude-code';
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { createServer } from "http";
-import { toFetchResponse, toReqRes } from "fetch-to-node";
-import { z } from "zod";
 import type { PermissionMcpServer } from "./permissionMcp";
 
 export class ClaudeCodingAgent implements CodingAgent {
@@ -57,27 +52,69 @@ export class ClaudeCodingAgent implements CodingAgent {
           case "assistant":
             break;
           case "user":
-            yield {
-              msgId: crypto.randomUUID(),
-              content: JSON.stringify(sdkMessage.message)
-            };
+            // ツール結果を個別に処理
+            const content = sdkMessage.message.content;
+            if (Array.isArray(content)) {
+              for (const item of content) {
+                switch (item.type) {
+                  case "tool_result":
+                    if (typeof item.content === 'string') {
+                      yield {
+                        type: "tool_result",
+                        msgId: crypto.randomUUID(),
+                        toolOutput: { type: "text", text: item.content }
+                      };
+                    } else if (Array.isArray(item.content)) {
+                      for (const x of item.content) {
+                        switch (x.type) {
+                          case "text":
+                            yield {
+                              type: "tool_result",
+                              msgId: crypto.randomUUID(),
+                              toolOutput: { type: "text", text: x.text }
+                            };
+                            break;
+                          case "image":
+                            yield {
+                              type: "tool_result",
+                              msgId: crypto.randomUUID(),
+                              toolOutput: { type: "image", uri: x.source.type === "base64" ? `data:${x.source.media_type};base64,${x.source.data}` : x.source.url }
+                            };
+                            break;
+                        }
+                      }
+                    }
+                    break;
+                  default:
+                    yield {
+                      type: "text",
+                      msgId: crypto.randomUUID(),
+                      content: JSON.stringify(sdkMessage.message)
+                    };
+                    break;
+                }
+              }
+            }
             break;
           case "result":
             switch (sdkMessage.subtype) {
               case "success":
                 yield {
+                  type: "text",
                   msgId: crypto.randomUUID(),
                   content: sdkMessage.result
                 };
                 break;
               case "error_during_execution":
                 yield {
+                  type: "text",
                   msgId: crypto.randomUUID(),
                   content: 'エラーが発生しました',
                 };
                 break;
               case "error_max_turns":
                 yield {
+                  type: "text",
                   msgId: crypto.randomUUID(),
                   content: '最大ターン数に達しました',
                 };

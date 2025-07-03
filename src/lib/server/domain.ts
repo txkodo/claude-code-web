@@ -3,9 +3,21 @@ export type UserMessage = {
     content: string;
 }
 
-export type AgentMessage = {
-    msgId: string;
-    content: string;
+export type AgentMessage =
+    | AgentMessage.Text
+    | AgentMessage.ToolResult;
+
+export namespace AgentMessage {
+    export type Text = {
+        type: "text";
+        msgId: string;
+        content: string;
+    }
+    export type ToolResult = {
+        type: "tool_result";
+        msgId: string;
+        toolOutput: { type: "image"; uri: string; } | { type: "text"; text: string; };
+    }
 }
 
 export type SessionEvent =
