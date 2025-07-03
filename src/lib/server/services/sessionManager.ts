@@ -1,4 +1,4 @@
-import type { SessionHandler, SessionHandlerFactory, SessionManager } from "$lib/domain";
+import type { SessionHandler, SessionHandlerFactory, SessionManager } from "$lib/server/domain";
 
 export class SessionManagerImpl implements SessionManager {
     #sessionMap: Map<string, SessionHandler>;

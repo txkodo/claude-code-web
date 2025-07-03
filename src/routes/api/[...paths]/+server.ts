@@ -1,4 +1,4 @@
-import { app } from '$lib/api';
+import { app } from '$lib/server/api';
 import type { RequestHandler } from '@sveltejs/kit';
 
 console.log('API server initialized');

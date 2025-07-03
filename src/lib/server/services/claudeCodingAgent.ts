@@ -1,4 +1,4 @@
-import type { AgentMessage, CodingAgent, CodingAgentFactory, CodingPermission } from "$lib/domain";
+import type { AgentMessage, CodingAgent, CodingAgentFactory, CodingPermission } from "$lib/server/domain";
 import { query } from '@anthropic-ai/claude-code';
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -113,7 +113,7 @@ export class ClaudeCodingAgent implements CodingAgent {
     // const url = `http://${bunServer.hostname}:${bunServer.port}/mcp`;
 
     return {
-      url:"http://localhost:3002/api/mcp",
+      url: "http://localhost:3002/api/mcp",
       async close() {
         // await bunServer.stop();
       }

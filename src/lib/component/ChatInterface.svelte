@@ -17,8 +17,8 @@
 	let messagesContainer: HTMLElement;
 	let isConnected = false;
 
-	onMount(async () => {
-		await connectSocket();
+	onMount(() => {
+		connectSocket();
 		return () => {
 			if (socket) {
 				socket.disconnect();
@@ -26,7 +26,7 @@
 		};
 	});
 
-	async function connectSocket() {
+	function connectSocket() {
 		socket = io();
 
 		socket.on('connect', () => {

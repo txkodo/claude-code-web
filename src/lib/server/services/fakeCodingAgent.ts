@@ -1,4 +1,4 @@
-import type { AgentMessage, CodingAgent, CodingAgentFactory, CodingPermission } from "$lib/domain";
+import type { AgentMessage, CodingAgent, CodingAgentFactory, CodingPermission } from "$lib/server/domain";
 
 export class FakeCodingAgent implements CodingAgent {
   #cwd: string;

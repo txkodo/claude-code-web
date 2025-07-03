@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import DirectorySelector from '$lib/DirectorySelector.svelte';
+	import DirectorySelector from '$lib/component/DirectorySelector.svelte';
 
 	let sessionIds: string[] = [];
 	let isLoading = false;

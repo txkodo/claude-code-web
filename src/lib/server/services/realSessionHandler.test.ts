@@ -1,6 +1,6 @@
 import { test, expect, mock } from 'bun:test';
 import { RealSessionHandler, RealSessionHandlerFactory } from './realSessionHandler';
-import type { CodingAgent, CodingAgentFactory, UserMessage } from '$lib/domain';
+import type { CodingAgent, CodingAgentFactory, UserMessage } from '$lib/server/domain';
 import { sleep } from 'bun';
 
 test('RealSessionHandlerが正しいセッションIDを返す', () => {

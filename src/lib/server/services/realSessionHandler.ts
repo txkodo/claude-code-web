@@ -1,4 +1,4 @@
-import type { CodingAgent, CodingAgentFactory, CodingPermission, SessionEvent, SessionHandler, SessionHandlerFactory, UserMessage } from "$lib/domain";
+import type { CodingAgent, CodingAgentFactory, CodingPermission, SessionEvent, SessionHandler, SessionHandlerFactory, UserMessage } from "$lib/server/domain";
 
 export class RealSessionHandler implements SessionHandler {
   #codingAgent: CodingAgent;

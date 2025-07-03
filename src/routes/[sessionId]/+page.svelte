@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import ChatInterface from '$lib/ChatInterface.svelte';
+	import ChatInterface from '$lib/component/ChatInterface.svelte';
 
 	let sessionExists = false;
 	let isLoading = true;
