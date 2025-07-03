@@ -1,12 +1,13 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
-	import DirectorySelector from '$lib/component/DirectorySelector.svelte';
+	import { onMount } from "svelte";
+	import { goto } from "$app/navigation";
+	import DirectorySelector from "$lib/component/DirectorySelector.svelte";
+	import { apiClient } from "$lib/client/api.svelte";
 
-	let sessionIds: string[] = [];
-	let isLoading = false;
-	let showCreateForm = false;
-	let selectedDirectory = '';
+	let sessionIds: string[] = $state([]);
+	let isLoading = $state(false);
+	let showCreateForm = $state(false);
+	let selectedDirectory = $state<string | null>(null);
 
 	onMount(async () => {
 		await loadSessions();
@@ -15,14 +16,12 @@
 	async function loadSessions() {
 		isLoading = true;
 		try {
-			const response = await fetch('/api/session');
-			if (!response.ok) {
-				throw new Error(`Failed to list sessions: ${response.statusText}`);
-			}
-			const data = await response.json();
-			sessionIds = data.sessionIds;
+			const res = await apiClient.session
+				.$get()
+				.then((res) => res.json());
+			sessionIds = res.sessionIds;
 		} catch (error) {
-			console.error('Failed to load sessions:', error);
+			console.error("Failed to load sessions:", error);
 		} finally {
 			isLoading = false;
 		}
@@ -32,25 +31,17 @@
 		if (!selectedDirectory) return;
 
 		try {
-			const response = await fetch('/api/session', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({ cwd: selectedDirectory }),
-			});
-			
-			if (!response.ok) {
-				throw new Error(`Failed to create session: ${response.statusText}`);
-			}
-			
-			const data = await response.json();
-			goto(`/${data.sessionId}`);
+			const res = await apiClient
+				.session.$post({
+					json: { cwd: selectedDirectory },
+				})
+				.then((res) => res.json());
+
+			goto(`/${res.sessionId}`);
 		} catch (error) {
-			console.error('Failed to create session:', error);
+			console.error("Failed to create session:", error);
 		}
 	}
-
 
 	function handleDirectorySelect(event: CustomEvent<string>) {
 		selectedDirectory = event.detail;
@@ -58,21 +49,24 @@
 
 	function formatDate(date: string | Date): string {
 		const d = new Date(date);
-		return d.toLocaleString('ja-JP');
+		return d.toLocaleString("ja-JP");
 	}
 </script>
 
 <div class="container">
 	<h1>Claude Code セッション</h1>
-	
+
 	{#if isLoading}
 		<div class="loading">読み込み中...</div>
 	{:else}
 		<div class="sessions-section">
 			<div class="section-header">
 				<h2>セッション一覧</h2>
-				<button class="btn" on:click={() => showCreateForm = !showCreateForm}>
-					{showCreateForm ? 'キャンセル' : '新しいセッション'}
+				<button
+					class="btn"
+					onclick={() => (showCreateForm = !showCreateForm)}
+				>
+					{showCreateForm ? "キャンセル" : "新しいセッション"}
 				</button>
 			</div>
 
@@ -80,8 +74,10 @@
 				<div class="card create-session">
 					<h3>新しいセッションを作成</h3>
 
-					<DirectorySelector on:directorySelected={handleDirectorySelect} />
-					
+					<DirectorySelector
+						on:directorySelected={handleDirectorySelect}
+					/>
+
 					{#if selectedDirectory}
 						<div class="directory-info">
 							選択されたディレクトリ: {selectedDirectory}
@@ -89,9 +85,9 @@
 					{/if}
 
 					<div class="form-actions">
-						<button 
-							class="btn" 
-							on:click={createSession}
+						<button
+							class="btn"
+							onclick={createSession}
 							disabled={!selectedDirectory}
 						>
 							セッションを作成
@@ -102,7 +98,9 @@
 
 			{#if sessionIds.length === 0}
 				<div class="empty-state">
-					<p>セッションがありません。新しいセッションを作成してください。</p>
+					<p>
+						セッションがありません。新しいセッションを作成してください。
+					</p>
 				</div>
 			{:else}
 				<div class="sessions-grid">
@@ -112,7 +110,10 @@
 								<h3>セッション {sessionId}</h3>
 							</div>
 							<div class="session-actions">
-								<button class="btn" on:click={() => goto(`/${sessionId}`)}>
+								<button
+									class="btn"
+									onclick={() => goto(`/${sessionId}`)}
+								>
 									チャットを開く
 								</button>
 							</div>
@@ -165,21 +166,10 @@
 		margin-bottom: 30px;
 	}
 
-	.form-group {
-		margin-bottom: 20px;
-	}
-
 	.form-actions {
 		display: flex;
 		gap: 10px;
 		margin-top: 20px;
-	}
-
-	label {
-		display: block;
-		margin-bottom: 8px;
-		font-weight: 500;
-		color: #374151;
 	}
 
 	.empty-state {
@@ -215,33 +205,9 @@
 		font-size: 1.1rem;
 	}
 
-	.session-info {
-		margin-bottom: 16px;
-	}
-
-	.session-info p {
-		margin: 4px 0;
-		color: #6b7280;
-		font-size: 0.9rem;
-	}
-
 	.session-actions {
 		display: flex;
 		gap: 10px;
-	}
-
-	.btn-icon {
-		padding: 4px 8px;
-		font-size: 0.8rem;
-		border: none;
-		border-radius: 4px;
-		cursor: pointer;
-		background: #dc3545;
-		color: white;
-	}
-
-	.btn-icon:hover {
-		background: #c82333;
 	}
 
 	.directory-info {

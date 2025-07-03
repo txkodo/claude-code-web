@@ -6,7 +6,6 @@ import { z } from 'zod';
 import { sValidator } from '@hono/standard-validator'
 import { RealSessionHandlerFactory } from './services/realSessionHandler';
 import { ClaudeCodingAgentFactory } from './services/claudeCodingAgent';
-
 const sessionManager: SessionManager = new SessionManagerImpl(new RealSessionHandlerFactory(new ClaudeCodingAgentFactory()));
 
 // API定義
@@ -27,3 +26,4 @@ const router = new Hono()
     });
 
 export const app = new Hono().route('/api', router);
+export type ApiRouter = typeof router;

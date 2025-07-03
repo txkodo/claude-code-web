@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
-	import ChatInterface from '$lib/component/ChatInterface.svelte';
+	import { onMount } from "svelte";
+	import { page } from "$app/stores";
+	import { goto } from "$app/navigation";
+	import ChatInterface from "$lib/component/ChatInterface.svelte";
 
-	let sessionExists = false;
-	let isLoading = true;
-	let error: string | null = null;
+	let sessionExists = $state(false);
+	let isLoading = $state(true);
+	let error: string | null = $state(null);
 
-	$: sessionId = $page.params.sessionId;
+	let sessionId = $derived($page.params.sessionId);
 
 	onMount(async () => {
 		await loadSession();
@@ -16,31 +16,31 @@
 
 	async function loadSession() {
 		if (!sessionId) return;
-		
+
 		isLoading = true;
 		error = null;
-		
+
 		try {
-			const response = await fetch('/api/session');
+			const response = await fetch("/api/session");
 			if (response.ok) {
 				const data = await response.json();
 				sessionExists = data.sessionIds.includes(sessionId);
 				if (!sessionExists) {
-					error = 'セッションが見つかりません';
+					error = "セッションが見つかりません";
 				}
 			} else {
-				error = 'セッションの読み込みに失敗しました';
+				error = "セッションの読み込みに失敗しました";
 			}
 		} catch (err) {
-			console.error('Failed to load session:', err);
-			error = 'セッションの読み込み中にエラーが発生しました';
+			console.error("Failed to load session:", err);
+			error = "セッションの読み込み中にエラーが発生しました";
 		} finally {
 			isLoading = false;
 		}
 	}
 
 	function goBack() {
-		goto('/');
+		goto("/");
 	}
 </script>
 
@@ -51,16 +51,14 @@
 		<div class="error-state">
 			<h2>エラー</h2>
 			<p>{error}</p>
-			<button class="btn" on:click={goBack}>
-				セッション一覧に戻る
-			</button>
+			<button class="btn" onclick={goBack}> セッション一覧に戻る </button>
 		</div>
 	{:else if sessionExists}
 		<div class="session-header">
 			<div class="session-info">
 				<h1>セッション {sessionId}</h1>
 			</div>
-			<button class="btn btn-secondary" on:click={goBack}>
+			<button class="btn btn-secondary" onclick={goBack}>
 				セッション一覧に戻る
 			</button>
 		</div>
@@ -69,9 +67,7 @@
 	{:else}
 		<div class="error-state">
 			<h2>セッションが見つかりません</h2>
-			<button class="btn" on:click={goBack}>
-				セッション一覧に戻る
-			</button>
+			<button class="btn" onclick={goBack}> セッション一覧に戻る </button>
 		</div>
 	{/if}
 </div>
@@ -121,12 +117,6 @@
 		margin: 0 0 8px 0;
 		color: #1f2937;
 		font-size: 1.5rem;
-	}
-
-	.session-details {
-		margin: 0;
-		color: #6b7280;
-		font-size: 0.9rem;
 	}
 
 	.btn-secondary {
