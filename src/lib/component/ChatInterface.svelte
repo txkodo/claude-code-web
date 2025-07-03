@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { io } from 'socket.io-client';
 
 	export let sessionId: string;
 
@@ -13,7 +12,7 @@
 	let messages: Message[] = [];
 	let currentMessage = '';
 	let isLoading = false;
-	let socket: any = null;
+	let socket: WebSocket | null = null;
 	let messagesContainer: HTMLElement;
 	let isConnected = false;
 
@@ -21,44 +20,50 @@
 		connectSocket();
 		return () => {
 			if (socket) {
-				socket.disconnect();
+				socket.close();
 			}
 		};
 	});
 
 	function connectSocket() {
-		socket = io();
+		const wsUrl = `ws://localhost:3001/api/ws`;
+		socket = new WebSocket(wsUrl);
 
-		socket.on('connect', () => {
-			console.log('Socket.IO connected');
+		socket.onopen = () => {
+			console.log('WebSocket connected');
 			isConnected = true;
-		});
+		};
 
-		socket.on('message', (data: any) => {
-			console.log('Socket.IO message:', data);
-			// Socket.IOのメッセージ形式に合わせて処理
-			handleSocketMessage(data);
-		});
+		socket.onmessage = (event) => {
+			try {
+				const data = JSON.parse(event.data);
+				console.log('WebSocket message:', data);
+				handleSocketMessage(data);
+			} catch (error) {
+				console.error('Failed to parse WebSocket message:', error);
+			}
+		};
 
-		socket.on('disconnect', () => {
-			console.log('Socket.IO disconnected');
+		socket.onclose = () => {
+			console.log('WebSocket disconnected');
 			isConnected = false;
-		});
+		};
 
-		socket.on('connect_error', (error: any) => {
-			console.error('Socket.IO error:', error);
+		socket.onerror = (error) => {
+			console.error('WebSocket error:', error);
 			isConnected = false;
-		});
+		};
 	}
 
 	function handleSocketMessage(data: any) {
-		// Socket.IOのメッセージ形式に合わせて処理
-		messages = [...messages, {
-			role: 'assistant',
-			content: `${data.from}: ${data.message}`,
-			timestamp: new Date(data.time)
-		}];
-		setTimeout(scrollToBottom, 10);
+		if (data.type === 'message') {
+			messages = [...messages, {
+				role: 'assistant',
+				content: `${data.data.from}: ${data.data.message}`,
+				timestamp: new Date(data.data.time)
+			}];
+			setTimeout(scrollToBottom, 10);
+		}
 	}
 
 	function scrollToBottom() {
@@ -68,14 +73,14 @@
 	}
 
 	function sendMessage() {
-		if (!currentMessage.trim() || !isConnected || isLoading) return;
+		if (!currentMessage.trim() || !isConnected || isLoading || !socket) return;
 
 		const message = {
-			msgId: Math.random().toString(36).substring(2) + Date.now().toString(36),
-			content: currentMessage.trim()
+			type: 'message',
+			message: currentMessage.trim()
 		};
 
-		socket?.emit('message', message.content);
+		socket.send(JSON.stringify(message));
 		currentMessage = '';
 		isLoading = true;
 	}
