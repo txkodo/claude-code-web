@@ -105,7 +105,7 @@ export class ClaudeCodingAgent implements CodingAgent {
 }
 
 export class ClaudeCodingAgentFactory implements CodingAgentFactory {
-  constructor(private permissionMcpServer: PermissionMcpServer) {}
+  constructor(private permissionMcpServer: PermissionMcpServer) { }
   createAgent(cwd: string): CodingAgent {
     return new ClaudeCodingAgent(cwd, this.permissionMcpServer);
   }

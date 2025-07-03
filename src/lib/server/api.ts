@@ -10,7 +10,7 @@ import { ClaudeCodingAgentFactory } from './services/claudeCodingAgent';
 import type { ServerWebSocket } from 'bun';
 import { PermissionMcpServer } from './services/permissionMcp';
 
-const permissionMcpServer = new PermissionMcpServer(id => `/api/mcp/permission/${id}`);
+const permissionMcpServer = new PermissionMcpServer(id => `http://localhost:3001/api/mcp/permission/${id}`);
 
 const sessionManager: SessionManager = new SessionManagerImpl(new RealSessionHandlerFactory(new ClaudeCodingAgentFactory(permissionMcpServer)));
 
