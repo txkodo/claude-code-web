@@ -1,28 +1,31 @@
 <script lang="ts">
 	import type { WsClientMessage, WsServerMessage } from "$lib/server/domain";
 	import { onMount } from "svelte";
-	import { marked } from "marked";
+	import Message from "./Message.svelte";
+	import ApprovalRequest from "./ApprovalRequest.svelte";
+	import ChatInput from "./ChatInput.svelte";
 
 	export let sessionId: string;
 
-	interface Message {
+	interface MessageType {
 		role: "user" | "assistant";
 		content?: string;
-		toolOutput?: { type: "image"; uri: string; } | { type: "text"; text: string; };
+		toolOutput?:
+			| { type: "image"; uri: string }
+			| { type: "text"; text: string };
 		type?: "text" | "tool_result";
 	}
 
-	interface ApprovalRequest {
+	interface ApprovalRequestType {
 		approvalId: string;
 		data: any;
 	}
 
-	let messages: Message[] = [];
-	let currentMessage = "";
+	let messages: MessageType[] = [];
 	let socket: WebSocket | null = null;
 	let messagesContainer: HTMLElement;
 	let isConnected = false;
-	let pendingApproval: ApprovalRequest | null = null;
+	let pendingApproval: ApprovalRequestType | null = null;
 
 	onMount(() => {
 		connectSocket();
@@ -32,10 +35,6 @@
 			}
 		};
 	});
-
-	function parseMarkdown(content: string): string {
-		return marked(content);
-	}
 
 	function connectSocket() {
 		const wsUrl = `ws://localhost:3001/api/ws`;
@@ -127,140 +126,97 @@
 		}
 	}
 
-	function sendMessage() {
-		if (!currentMessage.trim() || !isConnected || !socket) return;
+	function sendMessage(event: CustomEvent<{ message: string }>) {
+		if (!isConnected || !socket) return;
 
 		const message: WsClientMessage = {
 			type: "chat",
 			sessionId: sessionId,
-			message: currentMessage.trim(),
+			message: event.detail.message,
 		};
 
 		socket.send(JSON.stringify(message));
-		currentMessage = "";
-	}
-
-	function cancelRequest() {}
-
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
-			event.preventDefault();
-			sendMessage();
-		}
 	}
 
 	function clearChat() {
 		messages = [];
 	}
 
-	function handleApproval(behavior: "allow" | "deny", message?: string) {
-		if (!pendingApproval || !socket) return;
+	function handleApproval(
+		event:{ approvalId: string; data: any },
+	) {
+		if (!socket) return;
 
 		const approvalMessage: WsClientMessage = {
 			type: "answer_approval",
 			sessionId: sessionId,
-			approvalId: pendingApproval.approvalId,
-			data: behavior === "allow" 
-				? { behavior: "allow", updatedInput: pendingApproval.data }
-				: { behavior: "deny", message: message || "拒否されました" },
+			approvalId: event.approvalId,
+			data: { behavior: "allow", updatedInput: event.data },
 		};
 
 		socket.send(JSON.stringify(approvalMessage));
 		pendingApproval = null;
 	}
 
-	function formatTimestamp(date: Date): string {
-		return date.toLocaleTimeString("ja-JP", {
-			hour: "2-digit",
-			minute: "2-digit",
-		});
+	function handleDenial(
+		event: { approvalId: string; message?: string },
+	) {
+		if (!socket) return;
+
+		const approvalMessage: WsClientMessage = {
+			type: "answer_approval",
+			sessionId: sessionId,
+			approvalId: event.approvalId,
+			data: {
+				behavior: "deny",
+				message: event.message || "拒否されました",
+			},
+		};
+
+		socket.send(JSON.stringify(approvalMessage));
+		pendingApproval = null;
 	}
 </script>
 
 <div class="card">
 	<div class="chat-header">
 		<h2>Claude Code Chat</h2>
-		<div class="chat-controls">
-			<button
-				class="btn btn-secondary"
-				on:click={clearChat}
-			>
-				チャットをクリア
-			</button>
-		</div>
 	</div>
 
 	<div class="chat-container">
 		<div class="messages" bind:this={messagesContainer}>
 			{#each messages as message}
-				{#if message.type === "tool_result"}
-					<div class="message {message.role} tool-result">
-						{#if message.toolOutput?.type === "text"}
-							<pre class="tool-output-text">{message.toolOutput.text}</pre>
-						{:else if message.toolOutput?.type === "image"}
-							<img src={message.toolOutput.uri} alt="ツール実行結果の画像" class="tool-result-image" />
-						{/if}
-					</div>
-				{:else}
-					<div class="message {message.role}">
-						<div class="message-content">
-							{#if message.content}
-								{@html parseMarkdown(message.content)}
-							{/if}
-						</div>
-					</div>
-				{/if}
+				<Message {message} />
 			{/each}
 		</div>
 
 		{#if pendingApproval}
-			<div class="approval-request">
-				<div class="approval-header">
-					<h3>承認が必要です</h3>
-				</div>
-				<div class="approval-content">
-					<p>以下の操作を実行してもよろしいですか？</p>
-					<pre>{JSON.stringify(pendingApproval.data, null, 2)}</pre>
-				</div>
-				<div class="approval-actions">
-					<button
-						class="btn btn-primary"
-						on:click={() => handleApproval("allow")}
-					>
-						許可する
-					</button>
-					<button
-						class="btn btn-danger"
-						on:click={() => handleApproval("deny")}
-					>
-						拒否する
-					</button>
-				</div>
-			</div>
+			<ApprovalRequest
+				approvalRequest={pendingApproval}
+				onapprove={handleApproval}
+				ondeny={handleDenial}
+			/>
 		{/if}
 
-		<div class="input-area">
-			<textarea
-				bind:value={currentMessage}
-				on:keydown={handleKeydown}
-				placeholder="Claudeに質問してください... (Ctrl+Enter で送信)"
-				class="input message-input"
-				rows="3"
-				disabled={!!pendingApproval}
-			></textarea>
-
-			<button
-				class="btn"
-				on:click={sendMessage}
-				disabled={!currentMessage.trim() || !isConnected || !!pendingApproval}
-			>
-				{isConnected ? "送信" : "接続中..."}
-			</button>
-		</div>
+		<ChatInput
+			{isConnected}
+			isDisabled={!!pendingApproval}
+			on:send={sendMessage}
+			on:clear={clearChat}
+		/>
 	</div>
 </div>
 
 <style>
+	.card {
+		background: white;
+		border-radius: 12px;
+		padding: 24px;
+		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+		margin: 20px auto;
+		max-width: 1200px;
+	}
+
 	.chat-header {
 		display: flex;
 		justify-content: space-between;
@@ -275,318 +231,19 @@
 		color: #374151;
 	}
 
-	.chat-controls {
+	.chat-container {
 		display: flex;
-		gap: 8px;
+		flex-direction: column;
+		height: 70vh;
+		gap: 16px;
 	}
 
-	.btn-secondary {
-		background: #6b7280;
-	}
-
-	.btn-secondary:hover {
-		background: #4b5563;
-	}
-
-	.message-content {
-		line-height: 1.6;
-		word-wrap: break-word;
-	}
-
-	.message-content :global(pre) {
-		background: #f8f9fa;
-		border: 1px solid #e5e7eb;
-		border-radius: 6px;
+	.messages {
+		flex: 1;
+		overflow-y: auto;
 		padding: 16px;
-		margin: 12px 0;
-		font-size: 14px;
-		font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
-		overflow-x: auto;
-		white-space: pre-wrap;
-		word-wrap: break-word;
-	}
-
-	.message-content :global(code) {
-		background: #f3f4f6;
-		border-radius: 4px;
-		padding: 2px 6px;
-		font-size: 0.9em;
-		font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
-	}
-
-	.message-content :global(pre code) {
-		background: transparent;
-		border-radius: 0;
-		padding: 0;
-		font-size: inherit;
-	}
-
-	.message-content :global(ul), .message-content :global(ol) {
-		padding-left: 20px;
-		margin: 12px 0;
-	}
-
-	.message-content :global(li) {
-		margin: 4px 0;
-	}
-
-	.message-content :global(h1), .message-content :global(h2), .message-content :global(h3), .message-content :global(h4), .message-content :global(h5), .message-content :global(h6) {
-		margin: 16px 0 8px 0;
-		font-weight: 600;
-	}
-
-	.message-content :global(h1) {
-		font-size: 1.5em;
-	}
-
-	.message-content :global(h2) {
-		font-size: 1.3em;
-	}
-
-	.message-content :global(h3) {
-		font-size: 1.1em;
-	}
-
-	.message-content :global(blockquote) {
-		border-left: 4px solid #e5e7eb;
-		padding-left: 16px;
-		margin: 12px 0;
-		color: #6b7280;
-		font-style: italic;
-	}
-
-	.message-content :global(table) {
-		border-collapse: collapse;
-		width: 100%;
-		margin: 12px 0;
-	}
-
-	.message-content :global(th), .message-content :global(td) {
 		border: 1px solid #e5e7eb;
-		padding: 8px 12px;
-		text-align: left;
-	}
-
-	.message-content :global(th) {
-		background: #f9fafb;
-		font-weight: 600;
-	}
-
-	.message-content :global(p) {
-		margin: 8px 0;
-	}
-
-	.message-content :global(strong) {
-		font-weight: 600;
-	}
-
-	.message-content :global(em) {
-		font-style: italic;
-	}
-
-	.message-time {
-		font-size: 12px;
-		opacity: 0.7;
-		margin-top: 8px;
-	}
-
-	.message.user .message-time {
-		text-align: right;
-	}
-
-	.loading {
-		opacity: 0.8;
-	}
-
-	.typing-indicator {
-		display: flex;
-		gap: 4px;
-		align-items: center;
-	}
-
-	.typing-indicator span {
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		background: #6b7280;
-		animation: typing 1.4s infinite ease-in-out;
-	}
-
-	.typing-indicator span:nth-child(1) {
-		animation-delay: -0.32s;
-	}
-
-	.typing-indicator span:nth-child(2) {
-		animation-delay: -0.16s;
-	}
-
-	@keyframes typing {
-		0%,
-		80%,
-		100% {
-			transform: scale(0);
-			opacity: 0.5;
-		}
-		40% {
-			transform: scale(1);
-			opacity: 1;
-		}
-	}
-
-	.message-input {
-		resize: vertical;
-		min-height: 44px;
-		max-height: 200px;
-	}
-
-	.loading {
-		opacity: 0.8;
-	}
-
-	.typing-indicator {
-		display: flex;
-		gap: 4px;
-		align-items: center;
-	}
-
-	.typing-indicator span {
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		background: #6b7280;
-		animation: typing 1.4s infinite ease-in-out;
-	}
-
-	.typing-indicator span:nth-child(1) {
-		animation-delay: -0.32s;
-	}
-
-	.typing-indicator span:nth-child(2) {
-		animation-delay: -0.16s;
-	}
-
-	@keyframes typing {
-		0%,
-		80%,
-		100% {
-			transform: scale(0);
-			opacity: 0.5;
-		}
-		40% {
-			transform: scale(1);
-			opacity: 1;
-		}
-	}
-
-	.btn-danger {
-		background: #dc3545;
-		color: white;
-	}
-
-	.btn-danger:hover {
-		background: #c82333;
-	}
-
-	.raw-messages-info {
-		margin-top: 8px;
-		font-size: 12px;
-		color: #6b7280;
-	}
-
-	.raw-messages-info details {
-		margin-top: 4px;
-	}
-
-	.raw-messages-info summary {
-		cursor: pointer;
-		color: #3b82f6;
-		text-decoration: underline;
-	}
-
-	.raw-messages {
-		background: #f8f9fa;
-		border: 1px solid #e5e7eb;
-		border-radius: 4px;
-		padding: 8px;
-		margin-top: 4px;
-		font-size: 11px;
-		max-height: 200px;
-		overflow: auto;
-		white-space: pre-wrap;
-	}
-
-	.approval-request {
-		background: #fff3cd;
-		border: 1px solid #ffeaa7;
 		border-radius: 8px;
-		padding: 16px;
-		margin-bottom: 16px;
-	}
-
-	.approval-header h3 {
-		margin: 0 0 12px 0;
-		color: #856404;
-		font-size: 16px;
-	}
-
-	.approval-content p {
-		margin: 0 0 12px 0;
-		color: #856404;
-	}
-
-	.approval-content pre {
-		background: #f8f9fa;
-		border: 1px solid #e5e7eb;
-		border-radius: 4px;
-		padding: 12px;
-		font-size: 12px;
-		overflow-x: auto;
-		margin: 0 0 16px 0;
-		color: #374151;
-	}
-
-	.approval-actions {
-		display: flex;
-		gap: 8px;
-	}
-
-	.btn-primary {
-		background: #007bff;
-		color: white;
-	}
-
-	.btn-primary:hover {
-		background: #0056b3;
-	}
-
-	.message.tool-result {
-		background: #f0f9ff;
-		border: 1px solid #0ea5e9;
-		border-radius: 8px;
-		margin: 12px 0;
-		padding: 16px;
-	}
-
-	.message.tool-result .tool-output-text {
-		background: #ffffff;
-		border-radius: 6px;
-		padding: 16px;
-		font-size: 14px;
-		overflow-x: auto;
-		margin: 0;
-		color: #1f2937;
-		line-height: 1.5;
-		white-space: pre-wrap;
-		word-wrap: break-word;
-		font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
-	}
-
-	.message.tool-result .tool-result-image {
-		max-width: 100%;
-		max-height: 500px;
-		border-radius: 6px;
-		object-fit: contain;
-		display: block;
-		margin: 0 auto;
+		background: #fafafa;
 	}
 </style>
