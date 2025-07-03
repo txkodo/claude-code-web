@@ -2,7 +2,7 @@ import type { AgentMessage, CodingAgent, CodingAgentFactory, CodingPermission } 
 import { query } from '@anthropic-ai/claude-code';
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-// import { serve } from "bun";
+import { createServer } from "http";
 import { toFetchResponse, toReqRes } from "fetch-to-node";
 import { z } from "zod";
 
@@ -75,53 +75,66 @@ export class ClaudeCodingAgent implements CodingAgent {
   }
 
   #startApprovalPromptMcpServer() {
-    // const bunServer = serve({
-    //   port: 0, // Use port 0 to get an available port automatically
-    //   routes: {
-    //     "/mcp": async (bunReq) => {
-    //       const server = new McpServer({ name: "PermissionPromptServer", version: "1.0.0" });
-    //       server.tool(
-    //         "approval_prompt",
-    //         '権限チェックをユーザに問い合わせる',
-    //         {
-    //           tool_name: z.string().describe("権限を要求するツール"),
-    //           input: z.object({}).passthrough().describe("ツールの入力"),
-    //         },
-    //         async ({ input }) => {
-    //           if (!this.#permitActionCallback) {
-    //             throw new Error("No permit action callback available");
-    //           }
+    const mcpTmpServer = createServer(async (req, res) => {
+      if (req.url === '/mcp' && req.method === 'POST') {
+        const server = new McpServer({ name: "PermissionPromptServer", version: "1.0.0" });
+        server.tool(
+          "approval_prompt",
+          '権限チェックをユーザに問い合わせる',
+          {
+            tool_name: z.string().describe("権限を要求するツール"),
+            input: z.object({}).passthrough().describe("ツールの入力"),
+          },
+          async ({ input }) => {
+            if (!this.#permitActionCallback) {
+              throw new Error("No permit action callback available");
+            }
 
-    //           // 権限確認を実行
-    //           const permission = await this.#permitActionCallback(input);
+            // 権限確認を実行
+            const permission = await this.#permitActionCallback(input);
 
-    //           return {
-    //             content: [{ type: "text", text: JSON.stringify(permission) }]
-    //           };
-    //         }
-    //       );
+            return {
+              content: [{ type: "text", text: JSON.stringify(permission) }]
+            };
+          }
+        );
 
-    //       const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-    //       server.connect(transport);
-    //       try {
-    //         const body = await bunReq.json();
-    //         const { req, res } = toReqRes(bunReq);
-    //         await transport.handleRequest(req, res, body);
-    //         return toFetchResponse(res);
-    //       } finally {
-    //         server.close();
-    //         transport.close();
-    //       }
-    //     }
-    //   }
-    // });
+        const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+        server.connect(transport);
+        try {
+          let body = '';
+          req.on('data', chunk => body += chunk);
+          req.on('end', async () => {
+            try {
+              const parsedBody = JSON.parse(body);
+              await transport.handleRequest(req, res, parsedBody);
+            } catch (error) {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Invalid JSON' }));
+            }
+          });
+        } catch (error) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Internal server error' }));
+        } finally {
+          server.close();
+          transport.close();
+        }
+      } else {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Not found' }));
+      }
+    });
 
-    // const url = `http://${bunServer.hostname}:${bunServer.port}/mcp`;
+    mcpTmpServer.listen(0); // Use port 0 to get an available port automatically
+    const address = mcpTmpServer.address();
+    const port = typeof address === 'string' ? 0 : address?.port || 0;
+    const url = `http://localhost:${port}/mcp`;
 
     return {
-      url: "http://localhost:3002/api/mcp",
+      url,
       async close() {
-        // await bunServer.stop();
+        mcpTmpServer.close();
       }
     };
   }
