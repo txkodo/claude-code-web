@@ -2,9 +2,12 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig, type PluginOption } from 'vite';
 import { Server } from 'socket.io'
 
-const webSocketServer = {
+const webSocketServer: PluginOption = {
 	name: 'webSocketServer',
-	configureServer(server: any) {
+	configureServer(server) {
+		if (!server.httpServer) {
+			throw new Error('WebSocket server requires an HTTP server');
+		}
 		const io = new Server(server.httpServer)
 
 		io.on('connection', (socket) => {
@@ -12,7 +15,8 @@ const webSocketServer = {
 			socket.emit('name', username)
 
 			socket.on('message', (message) => {
-				io.emit('message', {
+				console.log(`Message from ${username}: ${message}`)
+				socket.emit('message', {
 					from: username,
 					message: message,
 					time: new Date().toLocaleString(),
@@ -23,14 +27,6 @@ const webSocketServer = {
 	}
 }
 
-export default defineConfig({ 
-	plugins: [sveltekit(), webSocketServer],
-	ssr: {
-		noExternal: []
-	},
-	build: {
-		rollupOptions: {
-			external: ['@modelcontextprotocol/sdk', '@anthropic-ai/claude-code']
-		}
-	}
+export default defineConfig({
+	plugins: [sveltekit(), webSocketServer]
 });

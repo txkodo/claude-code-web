@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { io } from 'socket.io-client';
 
 	export let sessionId: string;
 
@@ -12,65 +13,51 @@
 	let messages: Message[] = [];
 	let currentMessage = '';
 	let isLoading = false;
-	let websocket: WebSocket | null = null;
+	let socket: any = null;
 	let messagesContainer: HTMLElement;
 	let isConnected = false;
 
 	onMount(async () => {
-		await connectWebSocket();
+		await connectSocket();
 		return () => {
-			if (websocket) {
-				websocket.close();
+			if (socket) {
+				socket.disconnect();
 			}
 		};
 	});
 
-	async function connectWebSocket() {
-		websocket = new WebSocket(`/api/session/${sessionId}/ws`);
+	async function connectSocket() {
+		socket = io();
 
-		websocket.onopen = () => {
-			console.log('WebSocket connected');
+		socket.on('connect', () => {
+			console.log('Socket.IO connected');
 			isConnected = true;
-		};
+		});
 
-		websocket.onmessage = (event) => {
-			console.log('WebSocket message');
-			const sessionEvent = JSON.parse(event.data);
-			handleSessionEvent(sessionEvent);
-		};
+		socket.on('message', (data: any) => {
+			console.log('Socket.IO message:', data);
+			// Socket.IOのメッセージ形式に合わせて処理
+			handleSocketMessage(data);
+		});
 
-		websocket.onclose = () => {
-			console.log('WebSocket disconnected');
+		socket.on('disconnect', () => {
+			console.log('Socket.IO disconnected');
 			isConnected = false;
-		};
+		});
 
-		websocket.onerror = (error) => {
-			console.error('WebSocket error:', error);
+		socket.on('connect_error', (error: any) => {
+			console.error('Socket.IO error:', error);
 			isConnected = false;
-		};
+		});
 	}
 
-	function handleSessionEvent(event: any) {
-		switch (event.type) {
-			case 'push_user_message':
-				messages = [...messages, {
-					role: 'user',
-					content: event.message.content,
-					timestamp: new Date()
-				}];
-				break;
-			case 'push_agent_message':
-				messages = [...messages, {
-					role: 'assistant',
-					content: event.message.content,
-					timestamp: new Date()
-				}];
-				break;
-			case 'ask_approval':
-				// TODO: 承認ダイアログの実装
-				console.log('Approval requested:', event);
-				break;
-		}
+	function handleSocketMessage(data: any) {
+		// Socket.IOのメッセージ形式に合わせて処理
+		messages = [...messages, {
+			role: 'assistant',
+			content: `${data.from}: ${data.message}`,
+			timestamp: new Date(data.time)
+		}];
 		setTimeout(scrollToBottom, 10);
 	}
 
@@ -84,11 +71,11 @@
 		if (!currentMessage.trim() || !isConnected || isLoading) return;
 
 		const message = {
-			msgId: crypto.randomUUID(),
+			msgId: Math.random().toString(36).substring(2) + Date.now().toString(36),
 			content: currentMessage.trim()
 		};
 
-		websocket?.send(JSON.stringify(message));
+		socket?.emit('message', message.content);
 		currentMessage = '';
 		isLoading = true;
 	}

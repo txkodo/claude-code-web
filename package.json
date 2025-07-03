@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --bun vite dev",
+    "dev": "vite dev",
     "build": "bun --bun vite build",
     "preview": "bun --bun vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -27,9 +27,11 @@
     "@anthropic-ai/claude-code": "^1.0.35",
     "@hono/standard-validator": "^0.1.2",
     "@modelcontextprotocol/sdk": "^1.13.3",
+    "@types/socket.io-client": "^3.0.0",
     "fetch-to-node": "^2.1.0",
     "hono": "^4.8.3",
     "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
     "zod": "^3.25.67"
   }
 }
