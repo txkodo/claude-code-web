@@ -1,11 +1,11 @@
 <script lang="ts">
 	import type { WsClientMessage, WsServerMessage } from "$lib/server/domain";
-	import { onMount } from "svelte";
+	import { onMount, untrack } from "svelte";
 	import Message from "./Message.svelte";
 	import ApprovalRequest from "./ApprovalRequest.svelte";
 	import ChatInput from "./ChatInput.svelte";
 
-	export let sessionId: string;
+	let { sessionId }: { sessionId: string } = $props();
 
 	interface MessageType {
 		role: "user" | "assistant";
@@ -21,19 +21,26 @@
 		data: any;
 	}
 
-	let messages: MessageType[] = [];
-	let socket: WebSocket | null = null;
-	let messagesContainer: HTMLElement;
-	let isConnected = false;
-	let pendingApproval: ApprovalRequestType | null = null;
+	let messages = $state<MessageType[]>([]);
+	let socket = $state<WebSocket | null>(null);
+	let messagesContainer = $state<HTMLElement>();
+	let isConnected = $state(false);
+	let pendingApproval = $state<ApprovalRequestType | null>(null);
 
-	onMount(() => {
+	$effect(() => {
 		connectSocket();
 		return () => {
 			if (socket) {
 				socket.close();
 			}
 		};
+	});
+
+	// メッセージが追加されたら自動スクロール
+	$effect(() => {
+		if (messages.length > 0) {
+			untrack(() => setTimeout(scrollToBottom, 10));
+		}
 	});
 
 	function connectSocket() {
@@ -116,7 +123,7 @@
 					};
 					break;
 			}
-			setTimeout(scrollToBottom, 10);
+			// スクロールは$effectで自動処理
 		}
 	}
 
@@ -126,13 +133,13 @@
 		}
 	}
 
-	function sendMessage(event: CustomEvent<{ message: string }>) {
+	function sendMessage(event: { message: string }) {
 		if (!isConnected || !socket) return;
 
 		const message: WsClientMessage = {
 			type: "chat",
 			sessionId: sessionId,
-			message: event.detail.message,
+			message: event.message,
 		};
 
 		socket.send(JSON.stringify(message));
@@ -201,8 +208,8 @@
 		<ChatInput
 			{isConnected}
 			isDisabled={!!pendingApproval}
-			on:send={sendMessage}
-			on:clear={clearChat}
+			onsend={sendMessage}
+			onclear={clearChat}
 		/>
 	</div>
 </div>

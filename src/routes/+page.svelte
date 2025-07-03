@@ -43,8 +43,8 @@
 		}
 	}
 
-	function handleDirectorySelect(event: CustomEvent<string>) {
-		selectedDirectory = event.detail;
+	function handleDirectorySelect(directory: string) {
+		selectedDirectory = directory;
 	}
 
 	function formatDate(date: string | Date): string {
@@ -75,7 +75,7 @@
 					<h3>新しいセッションを作成</h3>
 
 					<DirectorySelector
-						on:directorySelected={handleDirectorySelect}
+						ondirectorySelected={handleDirectorySelect}
 					/>
 
 					{#if selectedDirectory}

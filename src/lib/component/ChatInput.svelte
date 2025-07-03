@@ -1,20 +1,22 @@
 <script lang="ts">
-	import { createEventDispatcher } from "svelte";
+	let { 
+		isConnected, 
+		isDisabled = false,
+		onsend,
+		onclear
+	}: { 
+		isConnected: boolean;
+		isDisabled?: boolean;
+		onsend: (event: { message: string }) => void;
+		onclear: () => void;
+	} = $props();
 
-	export let isConnected: boolean;
-	export let isDisabled: boolean = false;
-
-	let currentMessage = "";
-
-	const dispatch = createEventDispatcher<{
-		send: { message: string };
-		clear: void;
-	}>();
+	let currentMessage = $state("");
 
 	function sendMessage() {
 		if (!currentMessage.trim() || !isConnected || isDisabled) return;
 
-		dispatch("send", { message: currentMessage.trim() });
+		onsend({ message: currentMessage.trim() });
 		currentMessage = "";
 	}
 
@@ -26,7 +28,7 @@
 	}
 
 	function clearChat() {
-		dispatch("clear");
+		onclear();
 	}
 </script>
 
@@ -34,7 +36,7 @@
 	<div class="input-header">
 		<button
 			class="btn btn-secondary"
-			on:click={clearChat}
+			onclick={clearChat}
 		>
 			チャットをクリア
 		</button>
@@ -43,7 +45,7 @@
 	<div class="input-area">
 		<textarea
 			bind:value={currentMessage}
-			on:keydown={handleKeydown}
+			onkeydown={handleKeydown}
 			placeholder="Claudeに質問してください... (Ctrl+Enter で送信)"
 			class="input message-input"
 			rows="3"
@@ -52,7 +54,7 @@
 
 		<button
 			class="btn btn-primary"
-			on:click={sendMessage}
+			onclick={sendMessage}
 			disabled={!currentMessage.trim() || !isConnected || isDisabled}
 		>
 			{isConnected ? "送信" : "接続中..."}

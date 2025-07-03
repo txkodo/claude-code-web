@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
+	let { 
+		ondirectorySelected 
+	}: { 
+		ondirectorySelected: (directory: string) => void;
+	} = $props();
 
-	const dispatch = createEventDispatcher<{
-		directorySelected: string;
-	}>();
-
-	let directoryInput: HTMLInputElement;
-	let selectedDirectory = '';
+	let directoryInput = $state<HTMLInputElement>();
+	let selectedDirectory = $state('');
 
 	async function handleDirectorySelect() {
 		try {
@@ -14,13 +14,13 @@
 			if ('showDirectoryPicker' in window) {
 				const dirHandle = await (window as any).showDirectoryPicker();
 				selectedDirectory = dirHandle.name;
-				dispatch('directorySelected', selectedDirectory);
+				ondirectorySelected(selectedDirectory);
 			} else {
 				// Fallback: ask user to input directory path manually
 				const userInput = prompt('ディレクトリのパスを入力してください:');
 				if (userInput && userInput.trim()) {
 					selectedDirectory = userInput.trim();
-					dispatch('directorySelected', selectedDirectory);
+					ondirectorySelected(selectedDirectory);
 				}
 			}
 		} catch (error) {
@@ -30,7 +30,7 @@
 
 	function handleManualInput() {
 		if (selectedDirectory.trim()) {
-			dispatch('directorySelected', selectedDirectory.trim());
+			ondirectorySelected(selectedDirectory.trim());
 		}
 	}
 </script>
@@ -40,7 +40,7 @@
 	
 	<div class="selector-options">
 		<div class="option">
-			<button class="btn" on:click={handleDirectorySelect}>
+			<button class="btn" onclick={handleDirectorySelect}>
 				ディレクトリを選択
 			</button>
 			<small>ブラウザのディレクトリ選択ダイアログを使用</small>
@@ -55,8 +55,8 @@
 				type="text"
 				placeholder="/path/to/your/project"
 				class="input"
-				on:blur={handleManualInput}
-				on:keydown={(e) => e.key === 'Enter' && handleManualInput()}
+				onblur={handleManualInput}
+				onkeydown={(e) => e.key === 'Enter' && handleManualInput()}
 			/>
 			<small>ディレクトリパスを直接入力</small>
 		</div>
