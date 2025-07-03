@@ -67,6 +67,24 @@ export const apiRouter = new Hono()
                             }
                             break;
                         }
+                        case 'answer_approval': {
+                            try {
+                                const session = sessionManager.getSessionById(data.sessionId);
+                                if (session) {
+                                    await session.answerApproval(data.approvalId, data.data);
+                                } else {
+                                    console.error(`Session ${data.sessionId} not found`);
+                                }
+                            } catch (error) {
+                                console.error('Error processing answer approval:', error);
+                                ws.send(JSON.stringify({
+                                    type: 'error',
+                                    sessionId: data.sessionId,
+                                    error: error instanceof Error ? error.message : 'Unknown error'
+                                }));
+                            }
+                            break;
+                        }
                     }
                 } catch (error) {
                     console.error('Failed to parse WebSocket message:', error);
@@ -84,7 +102,7 @@ export const apiRouter = new Hono()
         async (c) => {
             const id = await sessionManager.createSession(c.req.valid('json').cwd);
             sessionManager.getSessionById(id)?.listenEvent((event, unsubscribe) => {
-                console.log("#event", event)
+                console.dir(event, { depth: null })
                 sockets.forEach((ws) => {
                     if (ws.isSubscribed(id)) {
                         ws.send(JSON.stringify({ type: 'event', sessionId: id, event: event, } satisfies WsServerMessage));

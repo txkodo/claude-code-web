@@ -88,6 +88,11 @@ export type WsClientMessage = {
     type: "chat"
     sessionId: string;
     message: string;
+} | {
+    type: "answer_approval"
+    sessionId: string;
+    approvalId: string;
+    data: CodingPermission;
 }
 
 export type WsServerMessage = {

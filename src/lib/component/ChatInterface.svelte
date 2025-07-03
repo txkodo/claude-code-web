@@ -9,11 +9,17 @@
 		content: string;
 	}
 
+	interface ApprovalRequest {
+		approvalId: string;
+		data: any;
+	}
+
 	let messages: Message[] = [];
 	let currentMessage = "";
 	let socket: WebSocket | null = null;
 	let messagesContainer: HTMLElement;
 	let isConnected = false;
+	let pendingApproval: ApprovalRequest | null = null;
 
 	onMount(() => {
 		connectSocket();
@@ -42,7 +48,7 @@
 		socket.onmessage = (event) => {
 			try {
 				const data = JSON.parse(event.data) as WsServerMessage;
-				console.log("WebSocket message:", data);
+				console.dir(data, { depth: null });
 				handleSocketMessage(data);
 			} catch (error) {
 				console.error("Failed to parse WebSocket message:", error);
@@ -84,6 +90,12 @@
 						},
 					];
 					break;
+				case "ask_approval":
+					pendingApproval = {
+						approvalId: data.event.approvalId,
+						data: data.event.data,
+					};
+					break;
 			}
 			setTimeout(scrollToBottom, 10);
 		}
@@ -121,6 +133,22 @@
 		messages = [];
 	}
 
+	function handleApproval(behavior: "allow" | "deny", message?: string) {
+		if (!pendingApproval || !socket) return;
+
+		const approvalMessage: WsClientMessage = {
+			type: "answer_approval",
+			sessionId: sessionId,
+			approvalId: pendingApproval.approvalId,
+			data: behavior === "allow" 
+				? { behavior: "allow", updatedInput: pendingApproval.data }
+				: { behavior: "deny", message: message || "拒否されました" },
+		};
+
+		socket.send(JSON.stringify(approvalMessage));
+		pendingApproval = null;
+	}
+
 	function formatTimestamp(date: Date): string {
 		return date.toLocaleTimeString("ja-JP", {
 			hour: "2-digit",
@@ -153,6 +181,32 @@
 			{/each}
 		</div>
 
+		{#if pendingApproval}
+			<div class="approval-request">
+				<div class="approval-header">
+					<h3>承認が必要です</h3>
+				</div>
+				<div class="approval-content">
+					<p>以下の操作を実行してもよろしいですか？</p>
+					<pre>{JSON.stringify(pendingApproval.data, null, 2)}</pre>
+				</div>
+				<div class="approval-actions">
+					<button
+						class="btn btn-primary"
+						on:click={() => handleApproval("allow")}
+					>
+						許可する
+					</button>
+					<button
+						class="btn btn-danger"
+						on:click={() => handleApproval("deny")}
+					>
+						拒否する
+					</button>
+				</div>
+			</div>
+		{/if}
+
 		<div class="input-area">
 			<textarea
 				bind:value={currentMessage}
@@ -160,12 +214,13 @@
 				placeholder="Claudeに質問してください... (Ctrl+Enter で送信)"
 				class="input message-input"
 				rows="3"
+				disabled={!!pendingApproval}
 			></textarea>
 
 			<button
 				class="btn"
 				on:click={sendMessage}
-				disabled={!currentMessage.trim() || !isConnected}
+				disabled={!currentMessage.trim() || !isConnected || !!pendingApproval}
 			>
 				{isConnected ? "送信" : "接続中..."}
 			</button>
@@ -336,5 +391,49 @@
 		max-height: 200px;
 		overflow: auto;
 		white-space: pre-wrap;
+	}
+
+	.approval-request {
+		background: #fff3cd;
+		border: 1px solid #ffeaa7;
+		border-radius: 8px;
+		padding: 16px;
+		margin-bottom: 16px;
+	}
+
+	.approval-header h3 {
+		margin: 0 0 12px 0;
+		color: #856404;
+		font-size: 16px;
+	}
+
+	.approval-content p {
+		margin: 0 0 12px 0;
+		color: #856404;
+	}
+
+	.approval-content pre {
+		background: #f8f9fa;
+		border: 1px solid #e5e7eb;
+		border-radius: 4px;
+		padding: 12px;
+		font-size: 12px;
+		overflow-x: auto;
+		margin: 0 0 16px 0;
+		color: #374151;
+	}
+
+	.approval-actions {
+		display: flex;
+		gap: 8px;
+	}
+
+	.btn-primary {
+		background: #007bff;
+		color: white;
+	}
+
+	.btn-primary:hover {
+		background: #0056b3;
 	}
 </style>

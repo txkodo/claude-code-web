@@ -77,7 +77,7 @@ export class RealSessionHandler implements SessionHandler {
   }
 
   #emitEvent(event: SessionEvent): void {
-    console.log("emitEvent", event);
+    console.dir(event, { depth: null });
     for (const handler of this.#handlers) {
       handler(event);
     }
