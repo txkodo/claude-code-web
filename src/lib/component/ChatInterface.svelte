@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { WsClientMessage } from "$lib/server/domain";
+	import type { WsClientMessage, WsServerMessage } from "$lib/server/domain";
 	import { onMount } from "svelte";
 
 	export let sessionId: string;
@@ -7,12 +7,10 @@
 	interface Message {
 		role: "user" | "assistant";
 		content: string;
-		timestamp: Date;
 	}
 
 	let messages: Message[] = [];
 	let currentMessage = "";
-	let isLoading = false;
 	let socket: WebSocket | null = null;
 	let messagesContainer: HTMLElement;
 	let isConnected = false;
@@ -43,7 +41,7 @@
 
 		socket.onmessage = (event) => {
 			try {
-				const data = JSON.parse(event.data);
+				const data = JSON.parse(event.data) as WsServerMessage;
 				console.log("WebSocket message:", data);
 				handleSocketMessage(data);
 			} catch (error) {
@@ -68,16 +66,25 @@
 		};
 	}
 
-	function handleSocketMessage(data: any) {
-		if (data.type === "message") {
-			messages = [
-				...messages,
-				{
-					role: "assistant",
-					content: `${data.data.from}: ${data.data.message}`,
-					timestamp: new Date(data.data.time),
-				},
-			];
+	function handleSocketMessage(data: WsServerMessage) {
+		if (data.type === "event") {
+			switch (data.event.type) {
+				case "push_user_message":
+					messages = [
+						...messages,
+						{ role: "user", content: data.event.message.content },
+					];
+					break;
+				case "push_agent_message":
+					messages = [
+						...messages,
+						{
+							role: "assistant",
+							content: data.event.message.content,
+						},
+					];
+					break;
+			}
 			setTimeout(scrollToBottom, 10);
 		}
 	}
@@ -89,8 +96,7 @@
 	}
 
 	function sendMessage() {
-		if (!currentMessage.trim() || !isConnected || isLoading || !socket)
-			return;
+		if (!currentMessage.trim() || !isConnected || !socket) return;
 
 		const message: WsClientMessage = {
 			type: "chat",
@@ -100,12 +106,9 @@
 
 		socket.send(JSON.stringify(message));
 		currentMessage = "";
-		isLoading = true;
 	}
 
-	function cancelRequest() {
-		isLoading = false;
-	}
+	function cancelRequest() {}
 
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
@@ -133,7 +136,6 @@
 			<button
 				class="btn btn-secondary"
 				on:click={clearChat}
-				disabled={isLoading}
 			>
 				チャットをクリア
 			</button>
@@ -147,23 +149,8 @@
 					<div class="message-content">
 						{message.content}
 					</div>
-					<div class="message-time">
-						{formatTimestamp(message.timestamp)}
-					</div>
 				</div>
 			{/each}
-
-			{#if isLoading}
-				<div class="message assistant loading">
-					<div class="message-content">
-						<div class="typing-indicator">
-							<span></span>
-							<span></span>
-							<span></span>
-						</div>
-					</div>
-				</div>
-			{/if}
 		</div>
 
 		<div class="input-area">
@@ -172,23 +159,16 @@
 				on:keydown={handleKeydown}
 				placeholder="Claudeに質問してください... (Ctrl+Enter で送信)"
 				class="input message-input"
-				disabled={isLoading}
 				rows="3"
 			></textarea>
 
-			{#if isLoading}
-				<button class="btn btn-danger" on:click={cancelRequest}>
-					キャンセル
-				</button>
-			{:else}
-				<button
-					class="btn"
-					on:click={sendMessage}
-					disabled={!currentMessage.trim() || !isConnected}
-				>
-					{isConnected ? "送信" : "接続中..."}
-				</button>
-			{/if}
+			<button
+				class="btn"
+				on:click={sendMessage}
+				disabled={!currentMessage.trim() || !isConnected}
+			>
+				{isConnected ? "送信" : "接続中..."}
+			</button>
 		</div>
 	</div>
 </div>

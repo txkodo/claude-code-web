@@ -51,12 +51,6 @@ export class RealSessionHandler implements SessionHandler {
       }
       catch (error) {
         console.error("Error in session handler:", error);
-        // エラーをWebSocketクライアントに送信
-        this.#emitEvent({ 
-          type: "error", 
-          error: error instanceof Error ? error.message : 'Unknown error',
-          details: error instanceof Error ? error.stack : undefined
-        });
       } finally {
         this.#busy = false;
       }

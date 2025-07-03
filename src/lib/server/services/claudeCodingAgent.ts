@@ -25,7 +25,6 @@ export class ClaudeCodingAgent implements CodingAgent {
     prompt: string,
     permitAction: (data: any) => Promise<CodingPermission>
   }): AsyncIterable<AgentMessage> {
-    console.log("startssss")
     if (this.#abortController) {
       throw new Error('作業中です.');
     }
@@ -33,36 +32,54 @@ export class ClaudeCodingAgent implements CodingAgent {
     try {
       this.#abortController = new AbortController();
       this.#permitActionCallback = props.permitAction;
-
-      console.log("query")
       // ClaudeCode実行
       for await (const sdkMessage of query({
         prompt: props.prompt,
         options: {
-          resume: this.#claudeCodeSessionId,
-          abortController: this.#abortController,
+          // resume: this.#claudeCodeSessionId,
+          // abortController: this.#abortController,
           cwd: this.#cwd,
-          executable: "bun",
-          mcpServers: { permission_prompt: { type: "http", url: this.#mcp.url, } },
-          permissionPromptToolName: "permission_prompt__approval_prompt"
+          // executable: "bun",
+          // mcpServers: { permission_prompt: { type: "http", url: this.#mcp.url, } },
+          // permissionPromptToolName: "permission_prompt__approval_prompt"
         }
       })) {
-        console.log("EACH")
+        console.log(sdkMessage);
         // セッションIDを保存（再開可能にするため）
         if (sdkMessage.session_id) {
           this.#claudeCodeSessionId = sdkMessage.session_id;
         }
 
-        // メッセージを適切な形式に変換して yield
-        yield {
-          msgId: crypto.randomUUID(),
-          content: JSON.stringify(sdkMessage)
-        };
-        console.log("f")
+        switch (sdkMessage.type) {
+          case "system":
+          case "assistant":
+          case "user":
+            // 無視
+            break;
+          case "result":
+            switch (sdkMessage.subtype) {
+              case "success":
+                yield {
+                  msgId: crypto.randomUUID(),
+                  content: sdkMessage.result
+                };
+                break;
+              case "error_during_execution":
+                yield {
+                  msgId: crypto.randomUUID(),
+                  content: 'エラーが発生しました',
+                };
+                break;
+              case "error_max_turns":
+                yield {
+                  msgId: crypto.randomUUID(),
+                  content: '最大ターン数に達しました',
+                };
+                break;
+            }
+        }
       }
-      console.log("FIN")
     } catch (error) {
-      console.log(error)
       if (error instanceof Error) {
         throw error;
       } else {
