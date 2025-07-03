@@ -27,14 +27,15 @@
 	let isConnected = $state(false);
 	let pendingApproval = $state<ApprovalRequestType | null>(null);
 
-	$effect(() => {
+	onMount(() => {
+		console.log("Connecting to WebSocket for session:", sessionId);
 		connectSocket();
 		return () => {
 			if (socket) {
 				socket.close();
 			}
 		};
-	});
+	})
 
 	// メッセージが追加されたら自動スクロール
 	$effect(() => {
@@ -71,12 +72,6 @@
 		socket.onclose = () => {
 			console.log("WebSocket disconnected");
 			isConnected = false;
-			socket?.send(
-				JSON.stringify({
-					type: "unsubscribe",
-					sessionId: sessionId,
-				} satisfies WsClientMessage),
-			);
 		};
 
 		socket.onerror = (error) => {
