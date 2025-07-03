@@ -8,6 +8,17 @@ const svelteKitUrl = "http://localhost:5173";
 
 const { websocket } = createBunWebSocket();
 
+// グローバルエラーハンドリング
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // サーバーを落とさずにエラーをログに記録
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // サーバーを落とさずにエラーをログに記録
+});
+
 // Honoアプリ（プロキシ機能付き）
 const honoApp = new Hono()
   // APIルートはそのまま処理（WebSocketも含む）

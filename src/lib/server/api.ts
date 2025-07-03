@@ -45,14 +45,28 @@ export const apiRouter = new Hono()
                             break;
                         }
                         case 'chat': {
-                            const session = sessionManager.getSessionById(data.sessionId);
-                            if (session) {
-                                await session.pushMessage({
-                                    msgId: crypto.randomUUID(),
-                                    content: data.message,
-                                })
-                            } else {
-                                console.error(`Session ${data.sessionId} not found`);
+                            try {
+                                const session = sessionManager.getSessionById(data.sessionId);
+                                if (session) {
+                                    await session.pushMessage({
+                                        msgId: crypto.randomUUID(),
+                                        content: data.message,
+                                    })
+                                } else {
+                                    console.error(`Session ${data.sessionId} not found`);
+                                    ws.send(JSON.stringify({
+                                        type: 'error',
+                                        sessionId: data.sessionId,
+                                        error: 'Session not found'
+                                    }));
+                                }
+                            } catch (error) {
+                                console.error('Error processing chat message:', error);
+                                ws.send(JSON.stringify({
+                                    type: 'error',
+                                    sessionId: data.sessionId,
+                                    error: error instanceof Error ? error.message : 'Unknown error'
+                                }));
                             }
                             break;
                         }

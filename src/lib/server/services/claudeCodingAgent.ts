@@ -25,6 +25,7 @@ export class ClaudeCodingAgent implements CodingAgent {
     prompt: string,
     permitAction: (data: any) => Promise<CodingPermission>
   }): AsyncIterable<AgentMessage> {
+    console.log("startssss")
     if (this.#abortController) {
       throw new Error('作業中です.');
     }
@@ -33,6 +34,7 @@ export class ClaudeCodingAgent implements CodingAgent {
       this.#abortController = new AbortController();
       this.#permitActionCallback = props.permitAction;
 
+      console.log("query")
       // ClaudeCode実行
       for await (const sdkMessage of query({
         prompt: props.prompt,
@@ -45,6 +47,7 @@ export class ClaudeCodingAgent implements CodingAgent {
           permissionPromptToolName: "permission_prompt__approval_prompt"
         }
       })) {
+        console.log("EACH")
         // セッションIDを保存（再開可能にするため）
         if (sdkMessage.session_id) {
           this.#claudeCodeSessionId = sdkMessage.session_id;
@@ -55,8 +58,11 @@ export class ClaudeCodingAgent implements CodingAgent {
           msgId: crypto.randomUUID(),
           content: JSON.stringify(sdkMessage)
         };
+        console.log("f")
       }
+      console.log("FIN")
     } catch (error) {
+      console.log(error)
       if (error instanceof Error) {
         throw error;
       } else {

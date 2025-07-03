@@ -48,14 +48,15 @@ export class RealSessionHandler implements SessionHandler {
         for await (const message of iter) {
           this.#emitEvent({ type: "push_agent_message", message: { msgId: crypto.randomUUID(), content: JSON.stringify(message) } })
         }
-        this.#busy = false;
       }
       catch (error) {
-        if (error instanceof Error) {
-          return error;
-        } else {
-          return new Error(`Unknown error: ${error}`);
-        }
+        console.error("Error in session handler:", error);
+        // エラーをWebSocketクライアントに送信
+        this.#emitEvent({ 
+          type: "error", 
+          error: error instanceof Error ? error.message : 'Unknown error',
+          details: error instanceof Error ? error.stack : undefined
+        });
       } finally {
         this.#busy = false;
       }
