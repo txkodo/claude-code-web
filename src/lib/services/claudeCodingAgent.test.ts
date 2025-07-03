@@ -1,6 +1,4 @@
 import { test, expect, mock } from 'bun:test';
-import type { CodingPermission } from '$lib/domain';
-
 // Mock external dependencies
 const mockQuery = mock();
 mock.module('@anthropic-ai/claude-code', () => ({

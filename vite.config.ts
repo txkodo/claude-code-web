@@ -1,15 +1,36 @@
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
+import { defineConfig, type PluginOption } from 'vite';
+import { Server } from 'socket.io'
 
-export default defineConfig({
-	plugins: [sveltekit()],
-	server: {
-		proxy: {
-			'/api': {
-				target: 'http://localhost:3002',
-				changeOrigin: true,
-				ws: true,
-			}
+const webSocketServer = {
+	name: 'webSocketServer',
+	configureServer(server: any) {
+		const io = new Server(server.httpServer)
+
+		io.on('connection', (socket) => {
+			const username = `User ${Math.round(Math.random() * 999_999)}`
+			socket.emit('name', username)
+
+			socket.on('message', (message) => {
+				io.emit('message', {
+					from: username,
+					message: message,
+					time: new Date().toLocaleString(),
+				})
+			})
+		})
+		console.log('SocketIO injected');
+	}
+}
+
+export default defineConfig({ 
+	plugins: [sveltekit(), webSocketServer],
+	ssr: {
+		noExternal: []
+	},
+	build: {
+		rollupOptions: {
+			external: ['@modelcontextprotocol/sdk', '@anthropic-ai/claude-code']
 		}
 	}
 });

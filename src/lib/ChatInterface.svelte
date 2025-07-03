@@ -26,9 +26,7 @@
 	});
 
 	async function connectWebSocket() {
-		const { getWebSocketUrl } = await import('$lib/api');
-		const wsUrl = getWebSocketUrl(sessionId);
-		websocket = new WebSocket(wsUrl);
+		websocket = new WebSocket(`/api/session/${sessionId}/ws`);
 
 		websocket.onopen = () => {
 			console.log('WebSocket connected');
@@ -36,6 +34,7 @@
 		};
 
 		websocket.onmessage = (event) => {
+			console.log('WebSocket message');
 			const sessionEvent = JSON.parse(event.data);
 			handleSessionEvent(sessionEvent);
 		};

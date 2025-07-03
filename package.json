@@ -11,8 +11,7 @@
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test": "bun test",
     "test:run": "bun test",
-    "typecheck": "tsc --noEmit",
-    "run:api": "bun run api-server.ts"
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@sveltejs/adapter-auto": "^6.0.1",
@@ -30,6 +29,7 @@
     "@modelcontextprotocol/sdk": "^1.13.3",
     "fetch-to-node": "^2.1.0",
     "hono": "^4.8.3",
+    "socket.io": "^4.8.1",
     "zod": "^3.25.67"
   }
 }

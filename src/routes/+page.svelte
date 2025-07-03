@@ -15,8 +15,11 @@
 	async function loadSessions() {
 		isLoading = true;
 		try {
-			const { listSessions } = await import('$lib/api');
-			const data = await listSessions();
+			const response = await fetch('/api/session');
+			if (!response.ok) {
+				throw new Error(`Failed to list sessions: ${response.statusText}`);
+			}
+			const data = await response.json();
 			sessionIds = data.sessionIds;
 		} catch (error) {
 			console.error('Failed to load sessions:', error);
@@ -29,8 +32,19 @@
 		if (!selectedDirectory) return;
 
 		try {
-			const { createSession: createSessionAPI } = await import('$lib/api');
-			const data = await createSessionAPI(selectedDirectory);
+			const response = await fetch('/api/session', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ cwd: selectedDirectory }),
+			});
+			
+			if (!response.ok) {
+				throw new Error(`Failed to create session: ${response.statusText}`);
+			}
+			
+			const data = await response.json();
 			goto(`/${data.sessionId}`);
 		} catch (error) {
 			console.error('Failed to create session:', error);

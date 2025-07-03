@@ -1,43 +1,29 @@
-// クライアント側でのAPI呼び出し用ヘルパー関数
-// APIサーバーが分離されたため、フェッチを行う関数を提供
+// api-server.ts - 独立したAPIサーバー
+import { Hono } from 'hono';
+import type { SessionManager } from "./domain";
+import { SessionManagerImpl } from "./services/sessionManager";
+import { z } from 'zod';
+import { sValidator } from '@hono/standard-validator'
+import { RealSessionHandlerFactory } from './services/realSessionHandler';
+import { ClaudeCodingAgentFactory } from './services/claudeCodingAgent';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const sessionManager: SessionManager = new SessionManagerImpl(new RealSessionHandlerFactory(new ClaudeCodingAgentFactory()));
 
-export async function createSession(cwd: string): Promise<{ sessionId: string }> {
-    const response = await fetch(`${API_BASE_URL}/session`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ cwd }),
+// API定義
+const router = new Hono()
+    .use(async (x, next) => {
+        console.log(`Request: ${x.req.method} ${x.req.path}`);
+        await next();
+    })
+    .post('/session',
+        sValidator("json", z.object({ cwd: z.string() })),
+        async (c) => {
+            const id = await sessionManager.createSession(c.req.valid('json').cwd);
+            return c.json({ sessionId: id });
+        })
+    .get('/session', async (c) => {
+        const sessions = await sessionManager.listSessions();
+        return c.json({ sessionIds: sessions });
     });
-    
-    if (!response.ok) {
-        throw new Error(`Failed to create session: ${response.statusText}`);
-    }
-    
-    return response.json();
-}
 
-export async function listSessions(): Promise<{ sessionIds: string[] }> {
-    const response = await fetch(`${API_BASE_URL}/session`);
-    
-    if (!response.ok) {
-        throw new Error(`Failed to list sessions: ${response.statusText}`);
-    }
-    
-    return response.json();
-}
-
-export function getWebSocketUrl(sessionId: string): string {
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    
-    // プロキシ経由でアクセスする場合は同じホストの WebSocket を使用
-    if (API_BASE_URL.startsWith('/')) {
-        return `${wsProtocol}//${window.location.host}${API_BASE_URL}/session/${sessionId}/ws`;
-    } else {
-        // 直接APIサーバーにアクセスする場合
-        const wsBaseUrl = API_BASE_URL.replace(/^https?:/, wsProtocol);
-        return `${wsBaseUrl}/session/${sessionId}/ws`;
-    }
-}
+export const app = new Hono().route('/api', router);

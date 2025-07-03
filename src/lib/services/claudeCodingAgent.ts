@@ -2,7 +2,7 @@ import type { AgentMessage, CodingAgent, CodingAgentFactory, CodingPermission } 
 import { query } from '@anthropic-ai/claude-code';
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { serve } from "bun";
+// import { serve } from "bun";
 import { toFetchResponse, toReqRes } from "fetch-to-node";
 import { z } from "zod";
 
@@ -69,53 +69,53 @@ export class ClaudeCodingAgent implements CodingAgent {
   }
 
   #startApprovalPromptMcpServer() {
-    const bunServer = serve({
-      port: 0, // Use port 0 to get an available port automatically
-      routes: {
-        "/mcp": async (bunReq) => {
-          const server = new McpServer({ name: "PermissionPromptServer", version: "1.0.0" });
-          server.tool(
-            "approval_prompt",
-            '権限チェックをユーザに問い合わせる',
-            {
-              tool_name: z.string().describe("権限を要求するツール"),
-              input: z.object({}).passthrough().describe("ツールの入力"),
-            },
-            async ({ input }) => {
-              if (!this.#permitActionCallback) {
-                throw new Error("No permit action callback available");
-              }
+    // const bunServer = serve({
+    //   port: 0, // Use port 0 to get an available port automatically
+    //   routes: {
+    //     "/mcp": async (bunReq) => {
+    //       const server = new McpServer({ name: "PermissionPromptServer", version: "1.0.0" });
+    //       server.tool(
+    //         "approval_prompt",
+    //         '権限チェックをユーザに問い合わせる',
+    //         {
+    //           tool_name: z.string().describe("権限を要求するツール"),
+    //           input: z.object({}).passthrough().describe("ツールの入力"),
+    //         },
+    //         async ({ input }) => {
+    //           if (!this.#permitActionCallback) {
+    //             throw new Error("No permit action callback available");
+    //           }
 
-              // 権限確認を実行
-              const permission = await this.#permitActionCallback(input);
+    //           // 権限確認を実行
+    //           const permission = await this.#permitActionCallback(input);
 
-              return {
-                content: [{ type: "text", text: JSON.stringify(permission) }]
-              };
-            }
-          );
+    //           return {
+    //             content: [{ type: "text", text: JSON.stringify(permission) }]
+    //           };
+    //         }
+    //       );
 
-          const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-          server.connect(transport);
-          try {
-            const body = await bunReq.json();
-            const { req, res } = toReqRes(bunReq);
-            await transport.handleRequest(req, res, body);
-            return toFetchResponse(res);
-          } finally {
-            server.close();
-            transport.close();
-          }
-        }
-      }
-    });
+    //       const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+    //       server.connect(transport);
+    //       try {
+    //         const body = await bunReq.json();
+    //         const { req, res } = toReqRes(bunReq);
+    //         await transport.handleRequest(req, res, body);
+    //         return toFetchResponse(res);
+    //       } finally {
+    //         server.close();
+    //         transport.close();
+    //       }
+    //     }
+    //   }
+    // });
 
-    const url = `http://${bunServer.hostname}:${bunServer.port}/mcp`;
+    // const url = `http://${bunServer.hostname}:${bunServer.port}/mcp`;
 
     return {
-      url,
+      url:"http://localhost:3002/api/mcp",
       async close() {
-        await bunServer.stop();
+        // await bunServer.stop();
       }
     };
   }
