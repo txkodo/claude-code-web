@@ -89,7 +89,7 @@ export class ClaudeCodingAgent implements CodingAgent {
                     yield {
                       type: "text",
                       msgId: crypto.randomUUID(),
-                      content: JSON.stringify(sdkMessage.message)
+                      content: JSON.stringify(item)
                     };
                     break;
                 }
