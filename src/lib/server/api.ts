@@ -8,8 +8,12 @@ import { sValidator } from '@hono/standard-validator'
 import { RealSessionHandlerFactory } from './services/realSessionHandler';
 import { ClaudeCodingAgentFactory } from './services/claudeCodingAgent';
 import type { ServerWebSocket } from 'bun';
+import { PermissionMcpServer } from './services/permissionMcp';
 
-const sessionManager: SessionManager = new SessionManagerImpl(new RealSessionHandlerFactory(new ClaudeCodingAgentFactory()));
+const permissionMcpServer = new PermissionMcpServer(id => `/api/mcp/permission/${id}`);
+
+const sessionManager: SessionManager = new SessionManagerImpl(new RealSessionHandlerFactory(new ClaudeCodingAgentFactory(permissionMcpServer)));
+
 
 // WebSocket設定
 const { upgradeWebSocket, websocket } = createBunWebSocket();
@@ -22,6 +26,7 @@ export const apiRouter = new Hono()
         console.log(`Request: ${x.req.method} ${x.req.path}`);
         await next();
     })
+    .all('/mcp/permission/:id', c => permissionMcpServer.handleRequest(c.req.param("id"), c.req.raw))
     .get('/ws', upgradeWebSocket((c) => {
         return {
             onOpen(evt, ws) {

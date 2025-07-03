@@ -5,20 +5,19 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { createServer } from "http";
 import { toFetchResponse, toReqRes } from "fetch-to-node";
 import { z } from "zod";
+import type { PermissionMcpServer } from "./permissionMcp";
 
 export class ClaudeCodingAgent implements CodingAgent {
   #cwd: string;
   #claudeCodeSessionId: string | undefined;
   #abortController: AbortController | undefined;
-  #mcp: { url: string, close: () => Promise<void> };
-  #permitActionCallback: ((data: any) => Promise<CodingPermission>) | undefined;
+  #permissionMcpServer: PermissionMcpServer;
 
-  constructor(cwd: string) {
+  constructor(cwd: string, permissionMcpServer: PermissionMcpServer) {
+    this.#permissionMcpServer = permissionMcpServer;
     this.#cwd = cwd;
     this.#claudeCodeSessionId = undefined;
     this.#abortController = undefined;
-    this.#mcp = this.#startApprovalPromptMcpServer();
-    this.#permitActionCallback = undefined;
   }
 
   async *process(props: {
@@ -29,19 +28,22 @@ export class ClaudeCodingAgent implements CodingAgent {
       throw new Error('作業中です.');
     }
 
+    const mcpSubscription = await this.#permissionMcpServer.subscribe(props.permitAction)
+
     try {
       this.#abortController = new AbortController();
-      this.#permitActionCallback = props.permitAction;
+
+
       // ClaudeCode実行
       for await (const sdkMessage of query({
         prompt: props.prompt,
         options: {
-          // resume: this.#claudeCodeSessionId,
-          // abortController: this.#abortController,
+          resume: this.#claudeCodeSessionId,
+          abortController: this.#abortController,
           cwd: this.#cwd,
-          // executable: "bun",
-          // mcpServers: { permission_prompt: { type: "http", url: this.#mcp.url, } },
-          // permissionPromptToolName: "permission_prompt__approval_prompt"
+          executable: "bun",
+          mcpServers: { permission_prompt: mcpSubscription.mcpServerConfig },
+          permissionPromptToolName: `mcp__permission_prompt__${mcpSubscription.toolName}`
         }
       })) {
         console.log(sdkMessage);
@@ -91,85 +93,20 @@ export class ClaudeCodingAgent implements CodingAgent {
       }
     } finally {
       this.#abortController = undefined;
-      this.#permitActionCallback = undefined;
+      mcpSubscription.unsubscribe();
     }
-  }
-
-  #startApprovalPromptMcpServer() {
-    const mcpTmpServer = createServer(async (req, res) => {
-      if (req.url === '/mcp' && req.method === 'POST') {
-        const server = new McpServer({ name: "PermissionPromptServer", version: "1.0.0" });
-        server.tool(
-          "approval_prompt",
-          '権限チェックをユーザに問い合わせる',
-          {
-            tool_name: z.string().describe("権限を要求するツール"),
-            input: z.object({}).passthrough().describe("ツールの入力"),
-          },
-          async ({ input }) => {
-            if (!this.#permitActionCallback) {
-              throw new Error("No permit action callback available");
-            }
-
-            // 権限確認を実行
-            const permission = await this.#permitActionCallback(input);
-
-            return {
-              content: [{ type: "text", text: JSON.stringify(permission) }]
-            };
-          }
-        );
-
-        const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-        server.connect(transport);
-        try {
-          let body = '';
-          req.on('data', chunk => body += chunk);
-          req.on('end', async () => {
-            try {
-              const parsedBody = JSON.parse(body);
-              await transport.handleRequest(req, res, parsedBody);
-            } catch (error) {
-              res.writeHead(400, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ error: 'Invalid JSON' }));
-            }
-          });
-        } catch (error) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Internal server error' }));
-        } finally {
-          server.close();
-          transport.close();
-        }
-      } else {
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Not found' }));
-      }
-    });
-
-    mcpTmpServer.listen(0); // Use port 0 to get an available port automatically
-    const address = mcpTmpServer.address();
-    const port = typeof address === 'string' ? 0 : address?.port || 0;
-    const url = `http://localhost:${port}/mcp`;
-
-    return {
-      url,
-      async close() {
-        mcpTmpServer.close();
-      }
-    };
   }
 
   async close(): Promise<void> {
     if (this.#abortController) {
       this.#abortController.abort();
     }
-    await this.#mcp.close();
   }
 }
 
 export class ClaudeCodingAgentFactory implements CodingAgentFactory {
+  constructor(private permissionMcpServer: PermissionMcpServer) {}
   createAgent(cwd: string): CodingAgent {
-    return new ClaudeCodingAgent(cwd);
+    return new ClaudeCodingAgent(cwd, this.permissionMcpServer);
   }
 }
