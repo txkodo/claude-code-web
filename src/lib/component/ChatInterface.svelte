@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { WsClientMessage, WsServerMessage } from "$lib/server/domain";
 	import { onMount } from "svelte";
+	import { marked } from "marked";
 
 	export let sessionId: string;
 
@@ -31,6 +32,10 @@
 			}
 		};
 	});
+
+	function parseMarkdown(content: string): string {
+		return marked(content);
+	}
 
 	function connectSocket() {
 		const wsUrl = `ws://localhost:3001/api/ws`;
@@ -199,7 +204,9 @@
 				{:else}
 					<div class="message {message.role}">
 						<div class="message-content">
-							{message.content}
+							{#if message.content}
+								{@html parseMarkdown(message.content)}
+							{/if}
 						</div>
 					</div>
 				{/if}
@@ -283,8 +290,98 @@
 
 	.message-content {
 		line-height: 1.6;
+		word-wrap: break-word;
+	}
+
+	.message-content :global(pre) {
+		background: #f8f9fa;
+		border: 1px solid #e5e7eb;
+		border-radius: 6px;
+		padding: 16px;
+		margin: 12px 0;
+		font-size: 14px;
+		font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+		overflow-x: auto;
 		white-space: pre-wrap;
 		word-wrap: break-word;
+	}
+
+	.message-content :global(code) {
+		background: #f3f4f6;
+		border-radius: 4px;
+		padding: 2px 6px;
+		font-size: 0.9em;
+		font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+	}
+
+	.message-content :global(pre code) {
+		background: transparent;
+		border-radius: 0;
+		padding: 0;
+		font-size: inherit;
+	}
+
+	.message-content :global(ul), .message-content :global(ol) {
+		padding-left: 20px;
+		margin: 12px 0;
+	}
+
+	.message-content :global(li) {
+		margin: 4px 0;
+	}
+
+	.message-content :global(h1), .message-content :global(h2), .message-content :global(h3), .message-content :global(h4), .message-content :global(h5), .message-content :global(h6) {
+		margin: 16px 0 8px 0;
+		font-weight: 600;
+	}
+
+	.message-content :global(h1) {
+		font-size: 1.5em;
+	}
+
+	.message-content :global(h2) {
+		font-size: 1.3em;
+	}
+
+	.message-content :global(h3) {
+		font-size: 1.1em;
+	}
+
+	.message-content :global(blockquote) {
+		border-left: 4px solid #e5e7eb;
+		padding-left: 16px;
+		margin: 12px 0;
+		color: #6b7280;
+		font-style: italic;
+	}
+
+	.message-content :global(table) {
+		border-collapse: collapse;
+		width: 100%;
+		margin: 12px 0;
+	}
+
+	.message-content :global(th), .message-content :global(td) {
+		border: 1px solid #e5e7eb;
+		padding: 8px 12px;
+		text-align: left;
+	}
+
+	.message-content :global(th) {
+		background: #f9fafb;
+		font-weight: 600;
+	}
+
+	.message-content :global(p) {
+		margin: 8px 0;
+	}
+
+	.message-content :global(strong) {
+		font-weight: 600;
+	}
+
+	.message-content :global(em) {
+		font-style: italic;
 	}
 
 	.message-time {
