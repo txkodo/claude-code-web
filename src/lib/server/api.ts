@@ -27,9 +27,6 @@ export const apiRouter = new Hono()
             onOpen(evt, ws) {
                 const rawWs = ws.raw as ServerWebSocket;
                 sockets.add(rawWs);
-                const username = `User ${Math.round(Math.random() * 999_999)}`;
-                ws.send(JSON.stringify({ type: 'name', data: username }));
-                console.log(`WebSocket connection opened for ${username}`);
             },
             async onMessage(evt, ws) {
                 const rawWs = ws.raw as ServerWebSocket;
@@ -54,11 +51,6 @@ export const apiRouter = new Hono()
                                     })
                                 } else {
                                     console.error(`Session ${data.sessionId} not found`);
-                                    ws.send(JSON.stringify({
-                                        type: 'error',
-                                        sessionId: data.sessionId,
-                                        error: 'Session not found'
-                                    }));
                                 }
                             } catch (error) {
                                 console.error('Error processing chat message:', error);
@@ -87,6 +79,7 @@ export const apiRouter = new Hono()
         async (c) => {
             const id = await sessionManager.createSession(c.req.valid('json').cwd);
             sessionManager.getSessionById(id)?.listenEvent((event, unsubscribe) => {
+                console.log("#event", event)
                 sockets.forEach((ws) => {
                     if (ws.isSubscribed(id)) {
                         ws.send(JSON.stringify({ type: 'event', sessionId: id, event: event, } satisfies WsServerMessage));

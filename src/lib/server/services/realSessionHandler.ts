@@ -46,7 +46,7 @@ export class RealSessionHandler implements SessionHandler {
           }
         })
         for await (const message of iter) {
-          this.#emitEvent({ type: "push_agent_message", message: { msgId: crypto.randomUUID(), content: JSON.stringify(message) } })
+          this.#emitEvent({ type: "push_agent_message", message: { msgId: crypto.randomUUID(), content: message.content } })
         }
       }
       catch (error) {
@@ -77,6 +77,7 @@ export class RealSessionHandler implements SessionHandler {
   }
 
   #emitEvent(event: SessionEvent): void {
+    console.log("emitEvent", event);
     for (const handler of this.#handlers) {
       handler(event);
     }
