@@ -8,7 +8,6 @@ export type AgentMessage = {
     content: string;
 }
 
-
 export type SessionEvent =
     | SessionEvent.PushUserMessage
     | SessionEvent.PushAgentMessage
@@ -77,4 +76,22 @@ export interface CodingAgent {
 
 export interface CodingAgentFactory {
     createAgent(cwd: string): CodingAgent;
+}
+
+export type WsClientMessage = {
+    type: "subscribe"
+    sessionId: string;
+} | {
+    type: "unsubscribe"
+    sessionId: string;
+} | {
+    type: "chat"
+    sessionId: string;
+    message: string;
+}
+
+export type WsServerMessage = {
+    type: "event"
+    sessionId: string;
+    event: SessionEvent
 }

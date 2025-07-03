@@ -1,16 +1,17 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import type { WsClientMessage } from "$lib/server/domain";
+	import { onMount } from "svelte";
 
 	export let sessionId: string;
 
 	interface Message {
-		role: 'user' | 'assistant';
+		role: "user" | "assistant";
 		content: string;
 		timestamp: Date;
 	}
 
 	let messages: Message[] = [];
-	let currentMessage = '';
+	let currentMessage = "";
 	let isLoading = false;
 	let socket: WebSocket | null = null;
 	let messagesContainer: HTMLElement;
@@ -30,38 +31,53 @@
 		socket = new WebSocket(wsUrl);
 
 		socket.onopen = () => {
-			console.log('WebSocket connected');
+			console.log("WebSocket connected");
+			socket?.send(
+				JSON.stringify({
+					type: "subscribe",
+					sessionId: sessionId,
+				} satisfies WsClientMessage),
+			);
 			isConnected = true;
 		};
 
 		socket.onmessage = (event) => {
 			try {
 				const data = JSON.parse(event.data);
-				console.log('WebSocket message:', data);
+				console.log("WebSocket message:", data);
 				handleSocketMessage(data);
 			} catch (error) {
-				console.error('Failed to parse WebSocket message:', error);
+				console.error("Failed to parse WebSocket message:", error);
 			}
 		};
 
 		socket.onclose = () => {
-			console.log('WebSocket disconnected');
+			console.log("WebSocket disconnected");
 			isConnected = false;
+			socket?.send(
+				JSON.stringify({
+					type: "unsubscribe",
+					sessionId: sessionId,
+				} satisfies WsClientMessage),
+			);
 		};
 
 		socket.onerror = (error) => {
-			console.error('WebSocket error:', error);
+			console.error("WebSocket error:", error);
 			isConnected = false;
 		};
 	}
 
 	function handleSocketMessage(data: any) {
-		if (data.type === 'message') {
-			messages = [...messages, {
-				role: 'assistant',
-				content: `${data.data.from}: ${data.data.message}`,
-				timestamp: new Date(data.data.time)
-			}];
+		if (data.type === "message") {
+			messages = [
+				...messages,
+				{
+					role: "assistant",
+					content: `${data.data.from}: ${data.data.message}`,
+					timestamp: new Date(data.data.time),
+				},
+			];
 			setTimeout(scrollToBottom, 10);
 		}
 	}
@@ -73,26 +89,26 @@
 	}
 
 	function sendMessage() {
-		if (!currentMessage.trim() || !isConnected || isLoading || !socket) return;
+		if (!currentMessage.trim() || !isConnected || isLoading || !socket)
+			return;
 
-		const message = {
-			type: 'message',
-			message: currentMessage.trim()
+		const message: WsClientMessage = {
+			type: "chat",
+			sessionId: sessionId,
+			message: currentMessage.trim(),
 		};
 
 		socket.send(JSON.stringify(message));
-		currentMessage = '';
+		currentMessage = "";
 		isLoading = true;
 	}
-
-
 
 	function cancelRequest() {
 		isLoading = false;
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+		if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
 			event.preventDefault();
 			sendMessage();
 		}
@@ -103,19 +119,22 @@
 	}
 
 	function formatTimestamp(date: Date): string {
-		return date.toLocaleTimeString('ja-JP', {
-			hour: '2-digit',
-			minute: '2-digit'
+		return date.toLocaleTimeString("ja-JP", {
+			hour: "2-digit",
+			minute: "2-digit",
 		});
 	}
-
 </script>
 
 <div class="card">
 	<div class="chat-header">
 		<h2>Claude Code Chat</h2>
 		<div class="chat-controls">
-			<button class="btn btn-secondary" on:click={clearChat} disabled={isLoading}>
+			<button
+				class="btn btn-secondary"
+				on:click={clearChat}
+				disabled={isLoading}
+			>
 				チャットをクリア
 			</button>
 		</div>
@@ -133,7 +152,7 @@
 					</div>
 				</div>
 			{/each}
-			
+
 			{#if isLoading}
 				<div class="message assistant loading">
 					<div class="message-content">
@@ -156,14 +175,18 @@
 				disabled={isLoading}
 				rows="3"
 			></textarea>
-			
+
 			{#if isLoading}
 				<button class="btn btn-danger" on:click={cancelRequest}>
 					キャンセル
 				</button>
 			{:else}
-				<button class="btn" on:click={sendMessage} disabled={!currentMessage.trim() || !isConnected}>
-					{isConnected ? '送信' : '接続中...'}
+				<button
+					class="btn"
+					on:click={sendMessage}
+					disabled={!currentMessage.trim() || !isConnected}
+				>
+					{isConnected ? "送信" : "接続中..."}
 				</button>
 			{/if}
 		</div>
@@ -241,7 +264,9 @@
 	}
 
 	@keyframes typing {
-		0%, 80%, 100% {
+		0%,
+		80%,
+		100% {
 			transform: scale(0);
 			opacity: 0.5;
 		}
@@ -284,7 +309,9 @@
 	}
 
 	@keyframes typing {
-		0%, 80%, 100% {
+		0%,
+		80%,
+		100% {
 			transform: scale(0);
 			opacity: 0.5;
 		}
