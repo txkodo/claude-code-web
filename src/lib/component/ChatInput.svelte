@@ -1,10 +1,10 @@
 <script lang="ts">
-	let { 
-		isConnected, 
+	let {
+		isConnected,
 		isDisabled = false,
 		onsend,
-		onclear
-	}: { 
+		onclear,
+	}: {
 		isConnected: boolean;
 		isDisabled?: boolean;
 		onsend: (event: { message: string }) => void;
@@ -33,15 +33,6 @@
 </script>
 
 <div class="input-container">
-	<div class="input-header">
-		<button
-			class="btn btn-secondary"
-			onclick={clearChat}
-		>
-			チャットをクリア
-		</button>
-	</div>
-	
 	<div class="input-area">
 		<textarea
 			bind:value={currentMessage}
@@ -51,24 +42,24 @@
 			rows="3"
 			disabled={isDisabled}
 		></textarea>
-
-		<button
-			class="btn btn-primary"
-			onclick={sendMessage}
-			disabled={!currentMessage.trim() || !isConnected || isDisabled}
-		>
-			{isConnected ? "送信" : "接続中..."}
-		</button>
+		<div>
+			<div class="input-header">
+				<button class="btn btn-secondary" onclick={clearChat}>
+					リセット
+				</button>
+			</div>
+			<button
+				class="btn btn-primary"
+				onclick={sendMessage}
+				disabled={!currentMessage.trim() || !isConnected || isDisabled}
+			>
+				{isConnected ? "送信" : "接続中..."}
+			</button>
+		</div>
 	</div>
 </div>
 
 <style>
-	.input-container {
-		border-top: 1px solid #e5e7eb;
-		padding-top: 16px;
-		margin-top: 16px;
-	}
-
 	.input-header {
 		display: flex;
 		justify-content: flex-end;

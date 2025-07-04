@@ -265,80 +265,46 @@
 	}
 </script>
 
-<div class="card">
-	<div class="chat-header">
-		<h2>Claude Code Chat</h2>
+<div class="chat-container">
+	<div class="messages" bind:this={messagesContainer}>
+		{#each messages as message}
+			{#if message.type === "approval_message"}
+				<ApprovalRequest
+					approvalRequest={{
+						approvalId: message.approvalId,
+						data: message.request,
+					}}
+					approvalStatus={message.approvalStatus}
+					onapprove={handleApproval}
+					ondeny={handleDenial}
+				/>
+			{:else}
+				<Message {message} />
+			{/if}
+		{/each}
 	</div>
 
-	<div class="chat-container">
-		<div class="messages" bind:this={messagesContainer}>
-			{#each messages as message}
-				{#if message.type === "approval_message"}
-					<ApprovalRequest
-						approvalRequest={{
-							approvalId: message.approvalId,
-							data: message.request,
-						}}
-						approvalStatus={message.approvalStatus}
-						onapprove={handleApproval}
-						ondeny={handleDenial}
-					/>
-				{:else}
-					<Message {message} />
-				{/if}
-			{/each}
-		</div>
-
-		<ChatInput
-			{isConnected}
-			isDisabled={messages.some(
-				(msg) =>
-					msg.type === "approval_message" &&
-					msg.approvalStatus === "pending",
-			)}
-			onsend={sendMessage}
-			onclear={clearChat}
-		/>
-	</div>
+	<ChatInput
+		{isConnected}
+		isDisabled={messages.some(
+			(msg) =>
+				msg.type === "approval_message" &&
+				msg.approvalStatus === "pending",
+		)}
+		onsend={sendMessage}
+		onclear={clearChat}
+	/>
 </div>
 
 <style>
-	.card {
-		background: white;
-		border-radius: 12px;
-		padding: 24px;
-		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-		margin: 20px auto;
-		max-width: 1200px;
-	}
-
-	.chat-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 20px;
-		padding-bottom: 16px;
-		border-bottom: 1px solid #e5e7eb;
-	}
-
-	.chat-header h2 {
-		margin: 0;
-		color: #374151;
-	}
-
 	.chat-container {
 		display: flex;
 		flex-direction: column;
 		height: 70vh;
-		gap: 16px;
 	}
 
 	.messages {
 		flex: 1;
 		overflow-y: auto;
-		padding: 16px;
-		border: 1px solid #e5e7eb;
-		border-radius: 8px;
-		background: #fafafa;
 	}
 </style>
