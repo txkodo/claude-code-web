@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { WsClientMessage, WsServerMessage } from "$lib/server/domain";
+	import type { ClientEvent, ServerEvent } from "$lib/server/domain";
 	import { onMount, untrack } from "svelte";
 	import Message from "./Message.svelte";
 	import ApprovalRequest from "./ApprovalRequest.svelte";
@@ -54,7 +54,7 @@
 				JSON.stringify({
 					type: "subscribe",
 					sessionId: sessionId,
-				} satisfies WsClientMessage),
+				} satisfies ClientEvent),
 			);
 			isConnected = true;
 		};
@@ -80,46 +80,57 @@
 		};
 	}
 
-	function handleSocketMessage(data: WsServerMessage) {
-		if (data.type === "event") {
-			switch (data.event.type) {
-				case "push_user_message":
-					messages = [
-						...messages,
-						{ role: "user", content: data.event.message.content },
-					];
-					break;
-				case "push_agent_message":
-					const agentMessage = data.event.message;
-					if (agentMessage.type === "tool_result") {
+	function handleSocketMessage(data: ServerEvent) {
+		switch (data.type) {
+			case "push_message":
+				switch (data.message.type) {
+					case "user_message":
 						messages = [
 							...messages,
-							{
-								role: "assistant",
-								type: "tool_result",
-								toolOutput: agentMessage.toolOutput,
-							},
+							{ role: "user", content: data.message.content },
 						];
-					} else {
+						break;
+					case "assistant_message":
 						messages = [
 							...messages,
 							{
 								role: "assistant",
 								type: "text",
-								content: agentMessage.content,
+								content: data.message.content,
 							},
 						];
+						break;
+					case "tool_result_message":
+						messages = [
+							...messages,
+							{
+								role: "assistant",
+								type: "tool_result",
+								toolOutput: data.message.output,
+							},
+						];
+						break;
+					case "approval_message":
+						if (data.message.response === null) {
+							// 新しい承認リクエスト
+							pendingApproval = {
+								approvalId: data.message.approvalId,
+								data: data.message.request,
+							};
+						}
+						break;
+				}
+				break;
+			case "update_message":
+				if (data.message.type === "approval_message" && data.message.response !== null) {
+					// 承認レスポンスが更新された - pending approvalをクリア
+					if (pendingApproval?.approvalId === data.message.approvalId) {
+						pendingApproval = null;
 					}
-					break;
-				case "ask_approval":
-					pendingApproval = {
-						approvalId: data.event.approvalId,
-						data: data.event.data,
-					};
-					break;
-			}
-			// スクロールは$effectで自動処理
+				}
+				break;
 		}
+		// スクロールは$effectで自動処理
 	}
 
 	function scrollToBottom() {
@@ -131,7 +142,7 @@
 	function sendMessage(event: { message: string }) {
 		if (!isConnected || !socket) return;
 
-		const message: WsClientMessage = {
+		const message: ClientEvent = {
 			type: "chat",
 			sessionId: sessionId,
 			message: event.message,
@@ -149,7 +160,7 @@
 	) {
 		if (!socket) return;
 
-		const approvalMessage: WsClientMessage = {
+		const approvalMessage: ClientEvent = {
 			type: "answer_approval",
 			sessionId: sessionId,
 			approvalId: event.approvalId,
@@ -165,7 +176,7 @@
 	) {
 		if (!socket) return;
 
-		const approvalMessage: WsClientMessage = {
+		const approvalMessage: ClientEvent = {
 			type: "answer_approval",
 			sessionId: sessionId,
 			approvalId: event.approvalId,

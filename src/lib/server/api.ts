@@ -101,8 +101,8 @@ export const apiRouter = new Hono()
             sessionManager.getSessionById(id)?.listenEvent((event, unsubscribe) => {
                 console.dir(event, { depth: null })
                 sockets.forEach((ws) => {
-                    if (ws.isSubscribed(id)) {
-                        ws.send(JSON.stringify({ type: 'event', sessionId: id, event: event, } satisfies { type: 'event', sessionId: string, event: ServerEvent }));
+                    if (ws.isSubscribed(event.sessionId)) {
+                        ws.send(JSON.stringify(event satisfies ServerEvent));
                     }
                 });
             })
