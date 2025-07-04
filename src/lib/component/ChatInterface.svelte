@@ -13,19 +13,17 @@
 		toolOutput?:
 			| { type: "image"; uri: string }
 			| { type: "text"; text: string };
-		type?: "text" | "tool_result";
+		type?: "text" | "tool_result" | "approval_request";
+		approvalId?: string;
+		approvalData?: any;
+		approvalStatus?: "pending" | "approved" | "denied";
 	}
 
-	interface ApprovalRequestType {
-		approvalId: string;
-		data: any;
-	}
 
 	let messages = $state<MessageType[]>([]);
 	let socket = $state<WebSocket | null>(null);
 	let messagesContainer = $state<HTMLElement>();
 	let isConnected = $state(false);
-	let pendingApproval = $state<ApprovalRequestType | null>(null);
 
 	onMount(() => {
 		console.log("Connecting to WebSocket for session:", sessionId);
@@ -61,7 +59,7 @@
 
 		socket.onmessage = (event) => {
 			try {
-				const data = JSON.parse(event.data) as WsServerMessage;
+				const data = JSON.parse(event.data) as ServerEvent;
 				console.dir(data, { depth: null });
 				handleSocketMessage(data);
 			} catch (error) {
@@ -112,21 +110,34 @@
 						break;
 					case "approval_message":
 						if (data.message.response === null) {
-							// 新しい承認リクエスト
-							pendingApproval = {
-								approvalId: data.message.approvalId,
-								data: data.message.request,
-							};
+							// 新しい承認リクエスト - メッセージとして追加
+							messages = [
+								...messages,
+								{
+									role: "assistant",
+									type: "approval_request",
+									content: "許可リクエスト",
+									approvalId: data.message.approvalId,
+									approvalData: data.message.request,
+									approvalStatus: "pending",
+								},
+							];
 						}
 						break;
 				}
 				break;
 			case "update_message":
 				if (data.message.type === "approval_message" && data.message.response !== null) {
-					// 承認レスポンスが更新された - pending approvalをクリア
-					if (pendingApproval?.approvalId === data.message.approvalId) {
-						pendingApproval = null;
-					}
+					// 承認レスポンスが更新された - メッセージのステータスを更新
+					messages = messages.map(msg => {
+						if (msg.approvalId === data.message.approvalId) {
+							return {
+								...msg,
+								approvalStatus: data.message.response.behavior === "allow" ? "approved" : "denied"
+							};
+						}
+						return msg;
+					});
 				}
 				break;
 		}
@@ -168,7 +179,13 @@
 		};
 
 		socket.send(JSON.stringify(approvalMessage));
-		pendingApproval = null;
+		// メッセージのステータスを即座に更新
+		messages = messages.map(msg => {
+			if (msg.approvalId === event.approvalId) {
+				return { ...msg, approvalStatus: "approved" };
+			}
+			return msg;
+		});
 	}
 
 	function handleDenial(
@@ -187,7 +204,13 @@
 		};
 
 		socket.send(JSON.stringify(approvalMessage));
-		pendingApproval = null;
+		// メッセージのステータスを即座に更新
+		messages = messages.map(msg => {
+			if (msg.approvalId === event.approvalId) {
+				return { ...msg, approvalStatus: "denied" };
+			}
+			return msg;
+		});
 	}
 </script>
 
@@ -199,21 +222,25 @@
 	<div class="chat-container">
 		<div class="messages" bind:this={messagesContainer}>
 			{#each messages as message}
-				<Message {message} />
+				{#if message.type === "approval_request"}
+					<ApprovalRequest
+						approvalRequest={{
+							approvalId: message.approvalId!,
+							data: message.approvalData
+						}}
+						approvalStatus={message.approvalStatus}
+						onapprove={handleApproval}
+						ondeny={handleDenial}
+					/>
+				{:else}
+					<Message {message} />
+				{/if}
 			{/each}
 		</div>
 
-		{#if pendingApproval}
-			<ApprovalRequest
-				approvalRequest={pendingApproval}
-				onapprove={handleApproval}
-				ondeny={handleDenial}
-			/>
-		{/if}
-
 		<ChatInput
 			{isConnected}
-			isDisabled={!!pendingApproval}
+			isDisabled={messages.some(msg => msg.approvalStatus === "pending")}
 			onsend={sendMessage}
 			onclear={clearChat}
 		/>

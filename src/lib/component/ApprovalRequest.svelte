@@ -4,8 +4,9 @@
 		data: any;
 	}
 
-	let { approvalRequest, onapprove, ondeny }: { 
+	let { approvalRequest, approvalStatus, onapprove, ondeny }: { 
 		approvalRequest: ApprovalRequest;
+		approvalStatus?: "pending" | "approved" | "denied";
 		onapprove: (event: { approvalId: string; data: any }) => void;
 		ondeny: (event: { approvalId: string; message?: string }) => void;
 	} = $props();
@@ -25,37 +26,60 @@
 	}
 </script>
 
-<div class="approval-request">
+<div class="approval-request" class:pending={approvalStatus === "pending" || !approvalStatus} class:approved={approvalStatus === "approved"} class:denied={approvalStatus === "denied"}>
 	<div class="approval-header">
-		<h3>承認が必要です</h3>
+		<h3>
+			{#if approvalStatus === "approved"}
+				✅ 承認済み
+			{:else if approvalStatus === "denied"}
+				❌ 拒否済み
+			{:else}
+				⏳ 承認が必要です
+			{/if}
+		</h3>
 	</div>
 	<div class="approval-content">
 		<p>以下の操作を実行してもよろしいですか？</p>
 		<pre>{JSON.stringify(approvalRequest.data, null, 2)}</pre>
 	</div>
-	<div class="approval-actions">
-		<button
-			class="btn btn-primary"
-			onclick={handleApprove}
-		>
-			許可する
-		</button>
-		<button
-			class="btn btn-danger"
-			onclick={handleDeny}
-		>
-			拒否する
-		</button>
-	</div>
+	{#if approvalStatus === "pending" || !approvalStatus}
+		<div class="approval-actions">
+			<button
+				class="btn btn-primary"
+				onclick={handleApprove}
+			>
+				許可する
+			</button>
+			<button
+				class="btn btn-danger"
+				onclick={handleDeny}
+			>
+				拒否する
+			</button>
+		</div>
+	{/if}
 </div>
 
 <style>
 	.approval-request {
-		background: #fff3cd;
-		border: 1px solid #ffeaa7;
 		border-radius: 8px;
 		padding: 16px;
 		margin-bottom: 16px;
+	}
+
+	.approval-request.pending {
+		background: #fff3cd;
+		border: 1px solid #ffeaa7;
+	}
+
+	.approval-request.approved {
+		background: #d4edda;
+		border: 1px solid #c3e6cb;
+	}
+
+	.approval-request.denied {
+		background: #f8d7da;
+		border: 1px solid #f1aeb5;
 	}
 
 	.approval-header h3 {
