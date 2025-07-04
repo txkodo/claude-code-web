@@ -42,15 +42,25 @@ mock.module('zod', () => ({
 
 const { ClaudeCodingAgent, ClaudeCodingAgentFactory } = await import('./claudeCodingAgent');
 
+// Mock PermissionMcpServer
+const mockPermissionMcpServer = {
+  subscribe: mock().mockResolvedValue({
+    unsubscribe: mock(),
+    mcpServerConfig: { type: "http", url: "http://localhost:12345" },
+    toolName: "approval_prompt"
+  }),
+  handleRequest: mock().mockResolvedValue(new Response())
+} as any;
+
 test('ClaudeCodingAgentのコンストラクタが正しく初期化される', () => {
-  const agent = new ClaudeCodingAgent('/test/cwd');
+  const agent = new ClaudeCodingAgent('/test/cwd', mockPermissionMcpServer);
   expect(agent).toBeInstanceOf(ClaudeCodingAgent);
 });
 
 test('ClaudeCodingAgentがメッセージを正しく処理する', async () => {
   const mockMessages = [
-    { type: 'text', content: 'Hello' },
-    { type: 'result', content: 'Done' }
+    { type: 'assistant', message: { content: 'Hello' } },
+    { type: 'result', subtype: 'success', result: 'Done' }
   ];
 
   mockQuery.mockImplementationOnce(async function* ({ options }) {
@@ -60,7 +70,7 @@ test('ClaudeCodingAgentがメッセージを正しく処理する', async () => 
     }
   });
 
-  const agent = new ClaudeCodingAgent('/test/cwd');
+  const agent = new ClaudeCodingAgent('/test/cwd', mockPermissionMcpServer);
 
   const results = [];
   for await (const message of agent.process({
@@ -72,8 +82,9 @@ test('ClaudeCodingAgentがメッセージを正しく処理する', async () => 
 
   expect(results).toHaveLength(2);
   expect(results[0]).toHaveProperty('msgId');
-  expect(results[0].content).toBe(JSON.stringify(mockMessages[0]));
-  expect(results[1].content).toBe(JSON.stringify(mockMessages[1]));
+  expect(results[0].type).toBe('assistant_message');
+  expect((results[0] as any).content).toBe(JSON.stringify(mockMessages[0]));
+  expect((results[1] as any).content).toBe(mockMessages[1].result);
 
   await agent.close();
 });
@@ -86,15 +97,15 @@ test('ClaudeCodingAgentがセッション再開を処理する', async () => {
   mockQuery
     .mockImplementationOnce(async function* ({ options }) {
       expect(options.resume).toBe(undefined)
-      yield { type: 'session_id', session_id: 'test-session-123' };
-      yield { type: 'text', content: 'First message' };
+      yield { type: 'system', session_id: 'test-session-123', message: { content: 'First message' } };
+      yield { type: 'assistant', message: { content: 'Response message' } };
     })
     .mockImplementationOnce(async function* ({ options }) {
       expect(options.resume).toBe('test-session-123')
-      yield { type: 'text', content: 'Second message' };
+      yield { type: 'assistant', message: { content: 'Second message' } };
     });
 
-  const agent = new ClaudeCodingAgent('/test/cwd');
+  const agent = new ClaudeCodingAgent('/test/cwd', mockPermissionMcpServer);
   const permitAction = mock().mockResolvedValue({ behavior: 'allow', updatedInput: {} });
 
   // 最初の処理
@@ -135,7 +146,7 @@ test('ClaudeCodingAgentがエラーを正しく処理する', async () => {
     throw testError;
   })());
 
-  const agent = new ClaudeCodingAgent('/test/cwd');
+  const agent = new ClaudeCodingAgent('/test/cwd', mockPermissionMcpServer);
   const permitAction = mock().mockResolvedValue({ behavior: 'allow', updatedInput: {} });
 
   try {
@@ -154,14 +165,14 @@ test('ClaudeCodingAgentがエラーを正しく処理する', async () => {
 });
 
 test('ClaudeCodingAgentのcloseメソッドが正しく動作する', async () => {
-  const agent = new ClaudeCodingAgent('/test/cwd');
+  const agent = new ClaudeCodingAgent('/test/cwd', mockPermissionMcpServer);
 
   // closeは例外を投げない
   await expect(agent.close()).resolves.toBeUndefined();
 });
 
 test('ClaudeCodingAgentFactoryがClaudeCodingAgentを作成する', () => {
-  const factory = new ClaudeCodingAgentFactory();
+  const factory = new ClaudeCodingAgentFactory(mockPermissionMcpServer);
   const agent = factory.createAgent('/test/cwd');
 
   expect(agent).toBeInstanceOf(ClaudeCodingAgent);
@@ -170,11 +181,11 @@ test('ClaudeCodingAgentFactoryがClaudeCodingAgentを作成する', () => {
 test('ClaudeCodingAgentの基本機能が動作する', async () => {
   // 基本的な反復を確認するシンプルなテスト
   mockQuery.mockReturnValue((async function* () {
-    yield { type: 'start', content: 'Starting' };
-    yield { type: 'end', content: 'Finished' };
+    yield { type: 'assistant', message: { content: 'Starting' } };
+    yield { type: 'result', subtype: 'success', result: 'Finished' };
   })());
 
-  const agent = new ClaudeCodingAgent('/test/cwd');
+  const agent = new ClaudeCodingAgent('/test/cwd', mockPermissionMcpServer);
   const permitAction = mock().mockResolvedValue({ behavior: 'allow', updatedInput: {} });
 
   const messages = [];
@@ -186,8 +197,8 @@ test('ClaudeCodingAgentの基本機能が動作する', async () => {
   }
 
   expect(messages).toHaveLength(2);
-  expect(messages[0].content).toContain('Starting');
-  expect(messages[1].content).toContain('Finished');
+  expect((messages[0] as any).content).toContain('Starting');
+  expect((messages[1] as any).content).toContain('Finished');
 
   await agent.close();
 });

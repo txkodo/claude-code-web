@@ -1,4 +1,4 @@
-import type { AgentMessage, CodingAgent, CodingAgentFactory, CodingPermission } from "$lib/server/domain";
+import type { SessionMessage, CodingAgent, CodingAgentFactory, CodingApproval } from "$lib/server/domain";
 import { query } from '@anthropic-ai/claude-code';
 import type { PermissionMcpServer } from "./permissionMcp";
 
@@ -17,8 +17,8 @@ export class ClaudeCodingAgent implements CodingAgent {
 
   async *process(props: {
     prompt: string,
-    permitAction: (data: any) => Promise<CodingPermission>
-  }): AsyncIterable<AgentMessage> {
+    permitAction: (data: any) => Promise<CodingApproval>
+  }): AsyncIterable<SessionMessage> {
     if (this.#abortController) {
       throw new Error('作業中です.');
     }
@@ -51,7 +51,7 @@ export class ClaudeCodingAgent implements CodingAgent {
           case "system":
           case "assistant":
             yield {
-              type: "text",
+              type: "assistant_message",
               msgId: crypto.randomUUID(),
               content: JSON.stringify(sdkMessage)
             };
@@ -65,25 +65,25 @@ export class ClaudeCodingAgent implements CodingAgent {
                   case "tool_result":
                     if (typeof item.content === 'string') {
                       yield {
-                        type: "tool_result",
+                        type: "tool_result_message",
                         msgId: crypto.randomUUID(),
-                        toolOutput: { type: "text", text: item.content }
+                        output: { type: "text", text: item.content }
                       };
                     } else if (Array.isArray(item.content)) {
                       for (const x of item.content) {
                         switch (x.type) {
                           case "text":
                             yield {
-                              type: "tool_result",
+                              type: "tool_result_message",
                               msgId: crypto.randomUUID(),
-                              toolOutput: { type: "text", text: x.text }
+                              output: { type: "text", text: x.text }
                             };
                             break;
                           case "image":
                             yield {
-                              type: "tool_result",
+                              type: "tool_result_message",
                               msgId: crypto.randomUUID(),
-                              toolOutput: { type: "image", uri: x.source.type === "base64" ? `data:${x.source.media_type};base64,${x.source.data}` : x.source.url }
+                              output: { type: "image", uri: x.source.type === "base64" ? `data:${x.source.media_type};base64,${x.source.data}` : x.source.url }
                             };
                             break;
                         }
@@ -92,7 +92,7 @@ export class ClaudeCodingAgent implements CodingAgent {
                     break;
                   default:
                     yield {
-                      type: "text",
+                      type: "assistant_message",
                       msgId: crypto.randomUUID(),
                       content: JSON.stringify(item)
                     };
@@ -105,21 +105,21 @@ export class ClaudeCodingAgent implements CodingAgent {
             switch (sdkMessage.subtype) {
               case "success":
                 yield {
-                  type: "text",
+                  type: "assistant_message",
                   msgId: crypto.randomUUID(),
                   content: sdkMessage.result
                 };
                 break;
               case "error_during_execution":
                 yield {
-                  type: "text",
+                  type: "assistant_message",
                   msgId: crypto.randomUUID(),
                   content: 'エラーが発生しました',
                 };
                 break;
               case "error_max_turns":
                 yield {
-                  type: "text",
+                  type: "assistant_message",
                   msgId: crypto.randomUUID(),
                   content: '最大ターン数に達しました',
                 };
