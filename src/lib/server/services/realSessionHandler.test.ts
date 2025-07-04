@@ -1,6 +1,6 @@
 import { test, expect, mock } from 'bun:test';
 import { RealSessionHandler, RealSessionHandlerFactory } from './realSessionHandler';
-import type { CodingAgent, CodingAgentFactory, UserMessage } from '$lib/server/domain';
+import type { CodingAgent, CodingAgentFactory } from '$lib/server/domain';
 import { sleep } from 'bun';
 
 test('RealSessionHandlerが正しいセッションIDを返す', () => {
@@ -20,7 +20,7 @@ test('RealSessionHandlerが正しいセッションIDを返す', () => {
 test('RealSessionHandlerがビジー時にエラーを返す', async () => {
     const mockAgent = {
         process: mock().mockReturnValue((async function* () {
-            yield { type: 'test', content: 'test' };
+            yield { type: 'assistant_message', msgId: crypto.randomUUID(), content: 'test' };
             await sleep(10);
         })()),
         close: mock().mockResolvedValue(undefined)
@@ -31,7 +31,7 @@ test('RealSessionHandlerがビジー時にエラーを返す', async () => {
         agent: mockAgent
     });
 
-    const message: UserMessage = { msgId: crypto.randomUUID(), content: 'test message' };
+    const message = 'test message';
 
     // 最初の呼び出しは処理を開始する
     expect(await handler.pushMessage(message)).toBeUndefined();
@@ -47,7 +47,7 @@ test('RealSessionHandlerがビジー時にエラーを返す', async () => {
 test('RealSessionHandlerがメッセージを処理してイベントを発行する', async () => {
     const mockAgent = {
         process: mock().mockReturnValue((async function* () {
-            yield { type: 'test', content: 'test message' };
+            yield { type: 'assistant_message', msgId: crypto.randomUUID(), content: 'test message' };
         })()),
         close: mock().mockResolvedValue(undefined)
     } as CodingAgent;
@@ -62,24 +62,24 @@ test('RealSessionHandlerがメッセージを処理してイベントを発行�
         events.push(event);
     });
 
-    const message: UserMessage = { msgId: crypto.randomUUID(), content: 'test message' };
+    const message = 'test message';
     await handler.pushMessage(message);
 
     // 非同期処理を少し待つ
     await new Promise(resolve => setTimeout(resolve, 10));
 
     expect(events).toHaveLength(2);
-    expect(events[0].type).toBe('push_user_message');
-    expect(events[1].type).toBe('push_agent_message');
+    expect(events[0].type).toBe('push_message');
+    expect(events[1].type).toBe('push_message');
     expect(events[1].message).toHaveProperty('msgId');
-    expect(events[1].message.content).toBe('{"type":"test","content":"test message"}');
+    expect(events[1].message.content).toBe('test message');
 });
 
 test('RealSessionHandlerのイベントリスナー登録解除が動作する', async () => {
     const mockAgent = {
         process: mock().mockReturnValue((async function* () {
-            yield { type: 'test1', content: 'message1' };
-            yield { type: 'test2', content: 'message2' };
+            yield { type: 'assistant_message', msgId: crypto.randomUUID(), content: 'message1' };
+            yield { type: 'assistant_message', msgId: crypto.randomUUID(), content: 'message2' };
         })()),
         close: mock().mockResolvedValue(undefined)
     } as CodingAgent;
@@ -98,7 +98,7 @@ test('RealSessionHandlerのイベントリスナー登録解除が動作する',
         }
     });
 
-    const message: UserMessage = { msgId: crypto.randomUUID(), content: 'test message' };
+    const message = 'test message';
     await handler.pushMessage(message);
 
     // 非同期処理を待つ
@@ -106,16 +106,16 @@ test('RealSessionHandlerのイベントリスナー登録解除が動作する',
 
     // 登録解除により最初のイベントのみ受信する
     expect(events).toHaveLength(1);
-    expect(events[0].type).toBe('push_user_message');
+    expect(events[0].type).toBe('push_message');
 });
 
-test('RealSessionHandlerの承認フローがask_approvalイベントを発行する', async () => {
+test('RealSessionHandlerの承認フローがapproval_messageを発行する', async () => {
     const mockAgent = {
         process: mock().mockImplementation(({ permitAction }) => {
             return (async function* () {
                 // 承認リクエストをトリガー
                 const result = await permitAction({ action: 'test' });
-                yield { type: 'test', content: JSON.stringify(result) };
+                yield { type: 'assistant_message', msgId: crypto.randomUUID(), content: JSON.stringify(result) };
             })();
         }),
         close: mock().mockResolvedValue(undefined)
@@ -131,27 +131,29 @@ test('RealSessionHandlerの承認フローがask_approvalイベントを発行�
         events.push(event);
     });
 
-    const message: UserMessage = { msgId: crypto.randomUUID(), content: 'test message' };
+    const message = 'test message';
     await handler.pushMessage(message);
 
     await sleep(10);
 
     // 承認リクエストが発行されている
-    const askApprovalEvent = events.find(e => e.type === 'ask_approval');
+    const askApprovalEvent = events.find(e => e.type === 'push_message' && e.message.type === 'approval_message');
     expect(askApprovalEvent).toBeDefined();
-    expect(askApprovalEvent.data).toEqual({ action: 'test' });
-    expect(askApprovalEvent.approvalId).toBeDefined();
+    expect(askApprovalEvent.message.request).toEqual({ action: 'test' });
+    expect(askApprovalEvent.message.approvalId).toBeDefined();
 
     // 承認イベントを発行
-    handler.answerApproval(askApprovalEvent.approvalId, { behavior: "allow", updatedInput: { foo: "bar" } });
+    handler.answerApproval(askApprovalEvent.message.approvalId, { behavior: "allow", updatedInput: { foo: "bar" } });
     await sleep(10)
 
     // 処理が終わっている
     expect(events[events.length - 1]).toEqual({
-        type: 'push_agent_message',
+        type: 'push_message',
+        sessionId: 'test-session-id',
         message: {
+            type: 'assistant_message',
             msgId: expect.any(String),
-            content: JSON.stringify({ type: 'test', content: '{"behavior":"allow","updatedInput":{"foo":"bar"}}' })
+            content: '{"behavior":"allow","updatedInput":{"foo":"bar"}}'
         }
     });
 });

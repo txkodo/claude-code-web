@@ -1,11 +1,11 @@
-import type { AgentMessage, CodingAgent, CodingAgentFactory, CodingPermission } from "$lib/server/domain";
+import type { SessionMessage, CodingAgent, CodingAgentFactory, CodingApproval } from "$lib/server/domain";
 
 export class FakeCodingAgent implements CodingAgent {
   #cwd: string;
-  #messages: AgentMessage[];
+  #messages: SessionMessage[];
   #delay: number;
 
-  constructor(cwd: string, messages: AgentMessage[] = [], delay: number = 100) {
+  constructor(cwd: string, messages: SessionMessage[] = [], delay: number = 100) {
     this.#cwd = cwd;
     this.#messages = messages;
     this.#delay = delay;
@@ -13,11 +13,12 @@ export class FakeCodingAgent implements CodingAgent {
 
   async *process(props: {
     prompt: string,
-    permitAction: (data: any) => Promise<CodingPermission>
-  }): AsyncIterable<AgentMessage> {
+    permitAction: (data: any) => Promise<CodingApproval>
+  }): AsyncIterable<SessionMessage> {
     // プロンプトに対するデフォルトレスポンス
     if (this.#messages.length === 0) {
       yield {
+        type: "assistant_message",
         msgId: crypto.randomUUID(),
         content: JSON.stringify({
           type: "text",
@@ -42,10 +43,10 @@ export class FakeCodingAgent implements CodingAgent {
 }
 
 export class FakeCodingAgentFactory implements CodingAgentFactory {
-  #messages: AgentMessage[];
+  #messages: SessionMessage[];
   #delay: number;
 
-  constructor(messages: AgentMessage[] = [], delay: number = 100) {
+  constructor(messages: SessionMessage[] = [], delay: number = 100) {
     this.#messages = messages;
     this.#delay = delay;
   }

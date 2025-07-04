@@ -1,96 +1,60 @@
-export type UserMessage = {
-    msgId: string;
-    content: string;
-}
+//#region Domain Types
 
-export type AgentMessage =
-    | AgentMessage.Text
-    | AgentMessage.ToolResult;
+export type SessionMessage =
+    | SessionMessage.UserMessage
+    | SessionMessage.AssistantMessage
+    | SessionMessage.ToolResultMessage
+    | SessionMessage.ApprovalMessage;
 
-export namespace AgentMessage {
-    export type Text = {
-        type: "text";
+export namespace SessionMessage {
+    export type UserMessage = {
+        type: "user_message";
         msgId: string;
         content: string;
     }
-    export type ToolResult = {
-        type: "tool_result";
+    export type AssistantMessage = {
+        type: "assistant_message";
         msgId: string;
-        toolOutput: { type: "image"; uri: string; } | { type: "text"; text: string; };
+        content: string;
+    }
+    export type ToolResultMessage = {
+        type: "tool_result_message";
+        msgId: string;
+        output: { type: "image"; uri: string; } | { type: "text"; text: string; };
+    }
+    export type ApprovalMessage = {
+        type: "approval_message";
+        msgId: string;
+        approvalId: string;
+        request: any;
+        response: CodingApproval | null;
     }
 }
 
-export type SessionEvent =
-    | SessionEvent.PushUserMessage
-    | SessionEvent.PushAgentMessage
-    | SessionEvent.UpdateAgentMessage
-    | SessionEvent.DeleteAgentMessage
-    | SessionEvent.AskApproval
-    | SessionEvent.AnswerApproval;
+export type ServerEvent =
+    | SessionEvent.PushMessage
+    | SessionEvent.UpdateMessage
+    | SessionEvent.DeleteMessage;
 
 export namespace SessionEvent {
-    export type PushUserMessage = {
-        type: "push_user_message",
-        message: UserMessage
+    export type PushMessage = {
+        type: "push_message",
+        sessionId: string;
+        message: SessionMessage
     }
-    export type PushAgentMessage = {
-        type: "push_agent_message",
-        message: AgentMessage
+    export type UpdateMessage = {
+        type: "update_message",
+        sessionId: string;
+        message: SessionMessage
     }
-    export type UpdateAgentMessage = {
-        type: "update_agent_message",
-        message: AgentMessage
-    }
-    export type DeleteAgentMessage = {
-        type: "delete_agent_message",
-        message: AgentMessage
-    }
-    export type AskApproval = {
-        type: "ask_approval",
-        approvalId: string;
-        data: any;
-    }
-    export type AnswerApproval = {
-        type: "answer_approval",
-        approvalId: string;
-        data: CodingPermission;
+    export type DeleteMessage = {
+        type: "delete_message",
+        sessionId: string;
+        messageId: string
     }
 }
 
-
-export interface SessionManager {
-    getSessionById(sessionId: string): SessionHandler | null;
-    listSessions(): string[];
-    createSession(cwd: string): string;
-}
-
-export interface SessionHandler {
-    sessionId(): string;
-    pushMessage(massage: UserMessage): Promise<void | Error>;
-    listenEvent(listener: (event: SessionEvent, unsubnscribe: () => void) => void): { unsubscribe(): void };
-    answerApproval(approvalId: string, data: CodingPermission): Promise<void>;
-    close(): Promise<void>;
-}
-
-export interface SessionHandlerFactory {
-    createSession(cwd: string, id: string): SessionHandler;
-}
-
-export type CodingPermission = { behavior: "allow"; updatedInput: any; } | { behavior: "deny"; message: string; }
-
-export interface CodingAgent {
-    process(props: {
-        prompt: string,
-        permitAction: (data: any) => Promise<CodingPermission>
-    }): AsyncIterable<AgentMessage>;
-    close(): Promise<void>;
-}
-
-export interface CodingAgentFactory {
-    createAgent(cwd: string): CodingAgent;
-}
-
-export type WsClientMessage = {
+export type ClientEvent = {
     type: "subscribe"
     sessionId: string;
 } | {
@@ -104,11 +68,68 @@ export type WsClientMessage = {
     type: "answer_approval"
     sessionId: string;
     approvalId: string;
-    data: CodingPermission;
+    data: CodingApproval;
 }
 
-export type WsServerMessage = {
-    type: "event"
-    sessionId: string;
-    event: SessionEvent
+export namespace ClientEvent {
+    export type SubscribeSession = {
+        type: "subscribe_session",
+        sessionId: string;
+    }
+    export type UnsubscribeSession = {
+        type: "unsubscribe_session",
+        sessionId: string;
+    }
+    export type SendUserMessage = {
+        type: "send_user_message",
+        messageId: string
+    }
+    export type AnswerApproval = {
+        type: "answer_approval",
+        sessionId: string;
+        approvalId: string;
+        data: CodingApproval;
+    }
 }
+
+//#endregion
+
+//#region Helper Types
+
+export type CodingApproval = { behavior: "allow"; updatedInput: any; } | { behavior: "deny"; message: string; }
+
+//#endregion
+
+//#region Service Interfaces
+
+export interface SessionManager {
+    getSessionById(sessionId: string): SessionHandler | null;
+    listSessions(): string[];
+    createSession(cwd: string): string;
+}
+
+export interface SessionHandler {
+    sessionId(): string;
+    pushMessage(massage: string): Promise<void | Error>;
+    listenEvent(listener: (event: ServerEvent, unsubnscribe: () => void) => void): { unsubscribe(): void };
+    answerApproval(approvalId: string, data: CodingApproval): Promise<void>;
+    close(): Promise<void>;
+}
+
+export interface SessionHandlerFactory {
+    createSession(cwd: string, id: string): SessionHandler;
+}
+
+export interface CodingAgent {
+    process(props: {
+        prompt: string,
+        permitAction: (data: any) => Promise<CodingApproval>
+    }): AsyncIterable<SessionMessage>;
+    close(): Promise<void>;
+}
+
+export interface CodingAgentFactory {
+    createAgent(cwd: string): CodingAgent;
+}
+
+//#endregion

@@ -1,7 +1,7 @@
 // api-server.ts - 独立したAPIサーバー
 import { Hono } from 'hono';
 import { createBunWebSocket } from 'hono/bun';
-import type { SessionManager, WsClientMessage, WsServerMessage } from "./domain";
+import type { SessionManager, ClientEvent, ServerEvent } from "./domain";
 import { SessionManagerImpl } from "./services/sessionManager";
 import { z } from 'zod';
 import { sValidator } from '@hono/standard-validator'
@@ -36,7 +36,7 @@ export const apiRouter = new Hono()
             async onMessage(evt, ws) {
                 const rawWs = ws.raw as ServerWebSocket;
                 try {
-                    const data = JSON.parse(evt.data.toString()) as WsClientMessage;
+                    const data = JSON.parse(evt.data.toString()) as ClientEvent;
                     switch (data.type) {
                         case 'subscribe': {
                             rawWs.subscribe(data.sessionId)
@@ -50,10 +50,7 @@ export const apiRouter = new Hono()
                             try {
                                 const session = sessionManager.getSessionById(data.sessionId);
                                 if (session) {
-                                    await session.pushMessage({
-                                        msgId: crypto.randomUUID(),
-                                        content: data.message,
-                                    })
+                                    await session.pushMessage(data.message)
                                 } else {
                                     console.error(`Session ${data.sessionId} not found`);
                                 }
@@ -104,8 +101,8 @@ export const apiRouter = new Hono()
             sessionManager.getSessionById(id)?.listenEvent((event, unsubscribe) => {
                 console.dir(event, { depth: null })
                 sockets.forEach((ws) => {
-                    if (ws.isSubscribed(id)) {
-                        ws.send(JSON.stringify({ type: 'event', sessionId: id, event: event, } satisfies WsServerMessage));
+                    if (ws.isSubscribed(event.sessionId)) {
+                        ws.send(JSON.stringify(event satisfies ServerEvent));
                     }
                 });
             })
