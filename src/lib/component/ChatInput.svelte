@@ -32,105 +32,30 @@
 	}
 </script>
 
-<div class="input-container">
-	<div class="input-area">
+<div class="space-y-3">
+	<div class="flex justify-end">
+		<button
+			class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors duration-200"
+			onclick={clearChat}
+		>
+			リセット
+		</button>
+	</div>
+	<div class="flex gap-2 items-end">
 		<textarea
 			bind:value={currentMessage}
 			onkeydown={handleKeydown}
 			placeholder="Claudeに質問してください... (Ctrl+Enter で送信)"
-			class="input message-input"
+			class="flex-1 p-3 border border-gray-300 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:border-blue-500 focus:ring-3 focus:ring-blue-100 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed resize-y min-h-[44px] max-h-[200px] font-inherit"
 			rows="3"
 			disabled={isDisabled}
 		></textarea>
-		<div>
-			<div class="input-header">
-				<button class="btn btn-secondary" onclick={clearChat}>
-					リセット
-				</button>
-			</div>
-			<button
-				class="btn btn-primary"
-				onclick={sendMessage}
-				disabled={!currentMessage.trim() || !isConnected || isDisabled}
-			>
-				{isConnected ? "送信" : "接続中..."}
-			</button>
-		</div>
+		<button
+			class="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+			onclick={sendMessage}
+			disabled={!currentMessage.trim() || !isConnected || isDisabled}
+		>
+			{isConnected ? "送信" : "接続中..."}
+		</button>
 	</div>
 </div>
-
-<style>
-	.input-header {
-		display: flex;
-		justify-content: flex-end;
-		margin-bottom: 12px;
-	}
-
-	.input-area {
-		display: flex;
-		gap: 8px;
-		align-items: flex-end;
-	}
-
-	.input {
-		flex: 1;
-		padding: 12px;
-		border: 1px solid #d1d5db;
-		border-radius: 8px;
-		font-size: 14px;
-		transition: border-color 0.2s;
-	}
-
-	.input:focus {
-		outline: none;
-		border-color: #3b82f6;
-		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-	}
-
-	.input:disabled {
-		background: #f9fafb;
-		color: #6b7280;
-		cursor: not-allowed;
-	}
-
-	.message-input {
-		resize: vertical;
-		min-height: 44px;
-		max-height: 200px;
-		font-family: inherit;
-	}
-
-	.btn {
-		padding: 12px 24px;
-		border: none;
-		border-radius: 8px;
-		font-size: 14px;
-		font-weight: 500;
-		cursor: pointer;
-		transition: all 0.2s;
-		white-space: nowrap;
-	}
-
-	.btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.btn-primary {
-		background: #3b82f6;
-		color: white;
-	}
-
-	.btn-primary:hover:not(:disabled) {
-		background: #2563eb;
-	}
-
-	.btn-secondary {
-		background: #6b7280;
-		color: white;
-	}
-
-	.btn-secondary:hover:not(:disabled) {
-		background: #4b5563;
-	}
-</style>

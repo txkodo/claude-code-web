@@ -31,8 +31,8 @@
 		if (!selectedDirectory) return;
 
 		try {
-			const res = await apiClient
-				.session.$post({
+			const res = await apiClient.session
+				.$post({
 					json: { cwd: selectedDirectory },
 				})
 				.then((res) => res.json());
@@ -53,17 +53,21 @@
 	}
 </script>
 
-<div class="container">
-	<h1>Claude Code セッション</h1>
+<div class="container mx-auto px-4">
+	<h1 class="text-center text-white mb-8 text-4xl drop-shadow-lg">
+		Claude Code セッション
+	</h1>
 
 	{#if isLoading}
-		<div class="loading">読み込み中...</div>
+		<div class="text-center py-10 text-gray-600">読み込み中...</div>
 	{:else}
-		<div class="sessions-section">
-			<div class="section-header">
-				<h2>セッション一覧</h2>
+		<div class="max-w-6xl mx-auto">
+			<div class="flex justify-between items-center mb-5">
+				<h2 class="mb-5 text-gray-700 text-xl font-semibold">
+					セッション一覧
+				</h2>
 				<button
-					class="btn"
+					class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors duration-200"
 					onclick={() => (showCreateForm = !showCreateForm)}
 				>
 					{showCreateForm ? "キャンセル" : "新しいセッション"}
@@ -71,22 +75,28 @@
 			</div>
 
 			{#if showCreateForm}
-				<div class="card create-session">
-					<h3>新しいセッションを作成</h3>
+				<div
+					class="bg-white rounded-lg p-5 shadow-md border border-gray-200 mb-8"
+				>
+					<h3 class="mb-3 text-gray-700 text-lg font-medium">
+						新しいセッションを作成
+					</h3>
 
 					<DirectorySelector
 						ondirectorySelected={handleDirectorySelect}
 					/>
 
 					{#if selectedDirectory}
-						<div class="directory-info">
+						<div
+							class="bg-gray-50 p-3 rounded border mt-3 text-sm text-gray-700"
+						>
 							選択されたディレクトリ: {selectedDirectory}
 						</div>
 					{/if}
 
-					<div class="form-actions">
+					<div class="flex gap-3 mt-5">
 						<button
-							class="btn"
+							class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
 							onclick={createSession}
 							disabled={!selectedDirectory}
 						>
@@ -97,21 +107,27 @@
 			{/if}
 
 			{#if sessionIds.length === 0}
-				<div class="empty-state">
+				<div class="text-center py-15 px-5 text-gray-600">
 					<p>
 						セッションがありません。新しいセッションを作成してください。
 					</p>
 				</div>
 			{:else}
-				<div class="sessions-grid">
+				<div
+					class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+				>
 					{#each sessionIds as sessionId}
-						<div class="session-card">
-							<div class="session-header">
-								<h3>セッション {sessionId}</h3>
+						<div
+							class="bg-white rounded-lg p-5 shadow-sm border border-gray-200"
+						>
+							<div class="flex justify-between items-start mb-4">
+								<h3 class="text-gray-800 text-lg font-medium">
+									セッション {sessionId}
+								</h3>
 							</div>
-							<div class="session-actions">
+							<div class="flex gap-3">
 								<button
-									class="btn"
+									class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors duration-200"
 									onclick={() => goto(`/${sessionId}`)}
 								>
 									チャットを開く
@@ -124,98 +140,3 @@
 		</div>
 	{/if}
 </div>
-
-<style>
-	h1 {
-		text-align: center;
-		color: white;
-		margin-bottom: 30px;
-		font-size: 2.5rem;
-		text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-	}
-
-	h2 {
-		margin-bottom: 20px;
-		color: #374151;
-	}
-
-	h3 {
-		margin-bottom: 12px;
-		color: #374151;
-	}
-
-	.loading {
-		text-align: center;
-		padding: 40px;
-		color: #6b7280;
-	}
-
-	.sessions-section {
-		max-width: 1200px;
-		margin: 0 auto;
-	}
-
-	.section-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 20px;
-	}
-
-	.create-session {
-		margin-bottom: 30px;
-	}
-
-	.form-actions {
-		display: flex;
-		gap: 10px;
-		margin-top: 20px;
-	}
-
-	.empty-state {
-		text-align: center;
-		padding: 60px 20px;
-		color: #6b7280;
-	}
-
-	.sessions-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-		gap: 20px;
-	}
-
-	.session-card {
-		background: white;
-		border-radius: 8px;
-		padding: 20px;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-		border: 1px solid #e5e7eb;
-	}
-
-	.session-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
-		margin-bottom: 16px;
-	}
-
-	.session-header h3 {
-		margin: 0;
-		color: #1f2937;
-		font-size: 1.1rem;
-	}
-
-	.session-actions {
-		display: flex;
-		gap: 10px;
-	}
-
-	.directory-info {
-		background: #f3f4f6;
-		padding: 10px;
-		border-radius: 4px;
-		margin-top: 10px;
-		font-size: 0.9rem;
-		color: #374151;
-	}
-</style>

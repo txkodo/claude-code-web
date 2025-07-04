@@ -1,15 +1,7 @@
 <script>
-	import '../app.css';
+	import "../app.css";
 </script>
 
-<main>
+<main class="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 p-5">
 	<slot />
 </main>
-
-<style>
-	main {
-		min-height: 100vh;
-		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-		padding: 20px;
-	}
-</style>

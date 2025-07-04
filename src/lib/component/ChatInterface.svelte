@@ -265,8 +265,8 @@
 	}
 </script>
 
-<div class="chat-container">
-	<div class="messages" bind:this={messagesContainer}>
+<div class="flex flex-col h-[70vh]">
+	<div class="flex-1 overflow-y-auto" bind:this={messagesContainer}>
 		{#each messages as message}
 			{#if message.type === "approval_message"}
 				<ApprovalRequest
@@ -295,16 +295,3 @@
 		onclear={clearChat}
 	/>
 </div>
-
-<style>
-	.chat-container {
-		display: flex;
-		flex-direction: column;
-		height: 70vh;
-	}
-
-	.messages {
-		flex: 1;
-		overflow-y: auto;
-	}
-</style>

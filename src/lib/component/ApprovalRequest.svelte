@@ -4,7 +4,12 @@
 		data: any;
 	}
 
-	let { approvalRequest, approvalStatus, onapprove, ondeny }: { 
+	let {
+		approvalRequest,
+		approvalStatus,
+		onapprove,
+		ondeny,
+	}: {
 		approvalRequest: ApprovalRequest;
 		approvalStatus?: "pending" | "approved" | "denied";
 		onapprove: (event: { approvalId: string; data: any }) => void;
@@ -26,9 +31,15 @@
 	}
 </script>
 
-<div class="approval-request" class:pending={approvalStatus === "pending" || !approvalStatus} class:approved={approvalStatus === "approved"} class:denied={approvalStatus === "denied"}>
-	<div class="approval-header">
-		<h3>
+<div
+	class="rounded-lg p-4 mb-4 {approvalStatus === 'approved'
+		? 'bg-green-100 border border-green-200'
+		: approvalStatus === 'denied'
+			? 'bg-red-100 border border-red-200'
+			: 'bg-yellow-100 border border-yellow-200'}"
+>
+	<div class="mb-3">
+		<h3 class="m-0 text-yellow-800 text-base">
 			{#if approvalStatus === "approved"}
 				✅ 承認済み
 			{:else if approvalStatus === "denied"}
@@ -38,20 +49,27 @@
 			{/if}
 		</h3>
 	</div>
-	<div class="approval-content">
-		<p>以下の操作を実行してもよろしいですか？</p>
-		<pre>{JSON.stringify(approvalRequest.data, null, 2)}</pre>
+	<div class="mb-4">
+		<p class="mb-3 text-yellow-800">
+			以下の操作を実行してもよろしいですか？
+		</p>
+		<pre
+			class="bg-gray-50 border border-gray-200 rounded p-3 text-xs overflow-x-auto text-gray-700">{JSON.stringify(
+				approvalRequest.data,
+				null,
+				2,
+			)}</pre>
 	</div>
 	{#if approvalStatus === "pending" || !approvalStatus}
-		<div class="approval-actions">
+		<div class="flex gap-2">
 			<button
-				class="btn btn-primary"
+				class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white border-none rounded cursor-pointer text-sm transition-colors duration-200"
 				onclick={handleApprove}
 			>
 				許可する
 			</button>
 			<button
-				class="btn btn-danger"
+				class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white border-none rounded cursor-pointer text-sm transition-colors duration-200"
 				onclick={handleDeny}
 			>
 				拒否する
@@ -59,80 +77,3 @@
 		</div>
 	{/if}
 </div>
-
-<style>
-	.approval-request {
-		border-radius: 8px;
-		padding: 16px;
-		margin-bottom: 16px;
-	}
-
-	.approval-request.pending {
-		background: #fff3cd;
-		border: 1px solid #ffeaa7;
-	}
-
-	.approval-request.approved {
-		background: #d4edda;
-		border: 1px solid #c3e6cb;
-	}
-
-	.approval-request.denied {
-		background: #f8d7da;
-		border: 1px solid #f1aeb5;
-	}
-
-	.approval-header h3 {
-		margin: 0 0 12px 0;
-		color: #856404;
-		font-size: 16px;
-	}
-
-	.approval-content p {
-		margin: 0 0 12px 0;
-		color: #856404;
-	}
-
-	.approval-content pre {
-		background: #f8f9fa;
-		border: 1px solid #e5e7eb;
-		border-radius: 4px;
-		padding: 12px;
-		font-size: 12px;
-		overflow-x: auto;
-		margin: 0 0 16px 0;
-		color: #374151;
-	}
-
-	.approval-actions {
-		display: flex;
-		gap: 8px;
-	}
-
-	.btn {
-		padding: 8px 16px;
-		border: none;
-		border-radius: 4px;
-		cursor: pointer;
-		font-size: 14px;
-		transition: background-color 0.2s;
-	}
-
-	.btn-primary {
-		background: #007bff;
-		color: white;
-	}
-
-	.btn-primary:hover {
-		background: #0056b3;
-	}
-
-	.btn-danger {
-		background: #dc3545;
-		color: white;
-	}
-
-	.btn-danger:hover {
-		background: #c82333;
-	}
-</style>

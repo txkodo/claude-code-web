@@ -44,87 +44,51 @@
 	}
 </script>
 
-<div class="container">
+<div class="max-w-6xl mx-auto p-5">
 	{#if isLoading}
-		<div class="loading">セッションを読み込み中...</div>
+		<div class="text-center py-15 px-5 text-gray-600 text-lg">
+			セッションを読み込み中...
+		</div>
 	{:else if error}
-		<div class="error-state">
-			<h2>エラー</h2>
-			<p>{error}</p>
-			<button class="btn" onclick={goBack}> セッション一覧に戻る </button>
+		<div class="text-center py-15 px-5">
+			<h2 class="text-red-600 mb-4 text-xl font-semibold">エラー</h2>
+			<p class="text-gray-600 mb-6">{error}</p>
+			<button
+				class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors duration-200"
+				onclick={goBack}
+			>
+				セッション一覧に戻る
+			</button>
 		</div>
 	{:else if sessionExists}
-		<div class="session-header">
-			<div class="session-info">
-				<h1>セッション {sessionId}</h1>
+		<div
+			class="flex justify-between items-start mb-5 p-5 bg-white rounded-lg shadow-sm border border-gray-200"
+		>
+			<div>
+				<h1 class="text-gray-800 text-2xl font-semibold mb-2">
+					セッション {sessionId}
+				</h1>
 			</div>
-			<button class="btn btn-secondary" onclick={goBack}>
+			<button
+				class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors duration-200"
+				onclick={goBack}
+			>
 				セッション一覧に戻る
 			</button>
 		</div>
 
 		<ChatInterface {sessionId} />
 	{:else}
-		<div class="error-state">
-			<h2>セッションが見つかりません</h2>
-			<button class="btn" onclick={goBack}> セッション一覧に戻る </button>
+		<div class="text-center py-15 px-5">
+			<h2 class="text-red-600 mb-4 text-xl font-semibold">
+				セッションが見つかりません
+			</h2>
+			<button
+				class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors duration-200"
+				onclick={goBack}
+			>
+				セッション一覧に戻る
+			</button>
 		</div>
 	{/if}
 </div>
-
-<style>
-	.container {
-		max-width: 1200px;
-		margin: 0 auto;
-		padding: 20px;
-	}
-
-	.loading {
-		text-align: center;
-		padding: 60px 20px;
-		color: #6b7280;
-		font-size: 1.1rem;
-	}
-
-	.error-state {
-		text-align: center;
-		padding: 60px 20px;
-	}
-
-	.error-state h2 {
-		color: #dc3545;
-		margin-bottom: 16px;
-	}
-
-	.error-state p {
-		color: #6b7280;
-		margin-bottom: 24px;
-	}
-
-	.session-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
-		margin-bottom: 20px;
-		padding: 20px;
-		background: white;
-		border-radius: 8px;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-		border: 1px solid #e5e7eb;
-	}
-
-	.session-info h1 {
-		margin: 0 0 8px 0;
-		color: #1f2937;
-		font-size: 1.5rem;
-	}
-
-	.btn-secondary {
-		background: #6b7280;
-		color: white;
-	}
-
-	.btn-secondary:hover {
-		background: #4b5563;
-	}
-</style>
