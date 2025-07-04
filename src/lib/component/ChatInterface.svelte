@@ -17,8 +17,9 @@
 	let messagesContainer = $state<HTMLElement>();
 	let isConnected = $state(false);
 
-	onMount(() => {
+	onMount(async () => {
 		console.log("Connecting to WebSocket for session:", sessionId);
+		await loadMessages();
 		connectSocket();
 		return () => {
 			if (socket) {
@@ -26,6 +27,27 @@
 			}
 		};
 	})
+
+	async function loadMessages() {
+		try {
+			const response = await fetch(`/api/session/${sessionId}/messages`);
+			if (response.ok) {
+				const data = await response.json();
+				messages = data.messages.map((msg: SessionMessage) => {
+					if (msg.type === "approval_message") {
+						return {
+							...msg,
+							approvalStatus: msg.response === null ? "pending" : 
+								msg.response.behavior === "allow" ? "approved" : "denied"
+						};
+					}
+					return msg;
+				});
+			}
+		} catch (error) {
+			console.error("Failed to load messages:", error);
+		}
+	}
 
 	// メッセージが追加されたら自動スクロール
 	$effect(() => {

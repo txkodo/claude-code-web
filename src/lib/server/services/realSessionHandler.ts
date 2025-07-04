@@ -6,6 +6,7 @@ export class RealSessionHandler implements SessionHandler {
   #handlers: ((event: ServerEvent) => void)[];
   #busy: boolean = false;
   #approvalMessages: Map<string, SessionMessage.ApprovalMessage> = new Map();
+  #messages: SessionMessage[] = [];
 
   constructor(props: {
     sessionId: string,
@@ -96,12 +97,33 @@ export class RealSessionHandler implements SessionHandler {
     return { unsubscribe };
   }
 
+  getAllMessages(): SessionMessage[] {
+    return [...this.#messages];
+  }
+
   async close(): Promise<void> {
     return
   }
 
   #emitEvent(event: ServerEvent): void {
     console.dir(event, { depth: null });
+    
+    // Store messages in the messages array
+    switch (event.type) {
+      case "push_message":
+        this.#messages.push(event.message);
+        break;
+      case "update_message":
+        const index = this.#messages.findIndex(m => m.msgId === event.message.msgId);
+        if (index !== -1) {
+          this.#messages[index] = event.message;
+        }
+        break;
+      case "delete_message":
+        this.#messages = this.#messages.filter(m => m.msgId !== event.messageId);
+        break;
+    }
+    
     for (const handler of this.#handlers) {
       handler(event);
     }

@@ -111,6 +111,15 @@ export const apiRouter = new Hono()
     .get('/session', async (c) => {
         const sessions = await sessionManager.listSessions();
         return c.json({ sessionIds: sessions });
+    })
+    .get('/session/:sessionId/messages', async (c) => {
+        const sessionId = c.req.param('sessionId');
+        const session = sessionManager.getSessionById(sessionId);
+        if (!session) {
+            return c.json({ error: 'Session not found' }, 404);
+        }
+        const messages = session.getAllMessages();
+        return c.json({ messages });
     });
 
 export type ApiRouter = typeof apiRouter;
