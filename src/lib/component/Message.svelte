@@ -15,7 +15,7 @@
 	>
 		{#if message.output.type === "text"}
 			<pre
-				class="bg-white rounded-md p-4 text-sm overflow-x-auto m-0 text-gray-800 leading-6 whitespace-pre-wrap break-words font-mono">{message
+				class="text-sm overflow-x-auto m-0 text-gray-800 whitespace-pre-wrap break-words font-mono">{message
 					.output.text}</pre>
 		{:else if message.output.type === "image"}
 			<img

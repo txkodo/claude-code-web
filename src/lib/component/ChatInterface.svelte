@@ -265,7 +265,7 @@
 	}
 </script>
 
-<div class="flex flex-col h-[70vh]">
+<div class="flex flex-col h-[100vh] p-3">
 	<div class="flex-1 overflow-y-auto" bind:this={messagesContainer}>
 		{#each messages as message}
 			{#if message.type === "approval_message"}
