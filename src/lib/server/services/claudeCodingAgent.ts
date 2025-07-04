@@ -1,5 +1,6 @@
 import type { SessionMessage, CodingAgent, CodingAgentFactory, CodingApproval } from "$lib/server/domain";
-import { query } from '@anthropic-ai/claude-code';
+import { query, type SDKAssistantMessage, type SDKMessage, type SDKResultMessage, type SDKSystemMessage, type SDKUserMessage } from '@anthropic-ai/claude-code';
+import type { ContentBlockParam, TextBlockParam, ImageBlockParam, Base64ImageSource, ToolResultBlockParam } from '@anthropic-ai/sdk/resources/messages';
 import type { PermissionMcpServer } from "./permissionMcp";
 
 export class ClaudeCodingAgent implements CodingAgent {
@@ -17,7 +18,7 @@ export class ClaudeCodingAgent implements CodingAgent {
 
   async *process(props: {
     prompt: string,
-    permitAction: (data: any) => Promise<CodingApproval>
+    permitAction: (data: unknown) => Promise<CodingApproval>
   }): AsyncIterable<SessionMessage> {
     if (this.#abortController) {
       throw new Error('作業中です.');
@@ -47,85 +48,7 @@ export class ClaudeCodingAgent implements CodingAgent {
           this.#claudeCodeSessionId = sdkMessage.session_id;
         }
 
-        switch (sdkMessage.type) {
-          case "system":
-          case "assistant":
-            yield {
-              type: "assistant_message",
-              msgId: crypto.randomUUID(),
-              content: JSON.stringify(sdkMessage)
-            };
-            break;
-          case "user":
-            // ツール結果を個別に処理
-            const content = sdkMessage.message.content;
-            if (Array.isArray(content)) {
-              for (const item of content) {
-                switch (item.type) {
-                  case "tool_result":
-                    if (typeof item.content === 'string') {
-                      yield {
-                        type: "tool_result_message",
-                        msgId: crypto.randomUUID(),
-                        output: { type: "text", text: item.content }
-                      };
-                    } else if (Array.isArray(item.content)) {
-                      for (const x of item.content) {
-                        switch (x.type) {
-                          case "text":
-                            yield {
-                              type: "tool_result_message",
-                              msgId: crypto.randomUUID(),
-                              output: { type: "text", text: x.text }
-                            };
-                            break;
-                          case "image":
-                            yield {
-                              type: "tool_result_message",
-                              msgId: crypto.randomUUID(),
-                              output: { type: "image", uri: x.source.type === "base64" ? `data:${x.source.media_type};base64,${x.source.data}` : x.source.url }
-                            };
-                            break;
-                        }
-                      }
-                    }
-                    break;
-                  default:
-                    yield {
-                      type: "assistant_message",
-                      msgId: crypto.randomUUID(),
-                      content: JSON.stringify(item)
-                    };
-                    break;
-                }
-              }
-            }
-            break;
-          case "result":
-            switch (sdkMessage.subtype) {
-              case "success":
-                yield {
-                  type: "assistant_message",
-                  msgId: crypto.randomUUID(),
-                  content: sdkMessage.result
-                };
-                break;
-              case "error_during_execution":
-                yield {
-                  type: "assistant_message",
-                  msgId: crypto.randomUUID(),
-                  content: 'エラーが発生しました',
-                };
-                break;
-              case "error_max_turns":
-                yield {
-                  type: "assistant_message",
-                  msgId: crypto.randomUUID(),
-                  content: '最大ターン数に達しました',
-                };
-                break;
-            }
-        }
+        yield* this.#handleSdkMessage(sdkMessage);
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -136,6 +59,139 @@ export class ClaudeCodingAgent implements CodingAgent {
     } finally {
       this.#abortController = undefined;
       mcpSubscription.unsubscribe();
+    }
+  }
+
+  async *#handleSdkMessage(sdkMessage: SDKMessage): AsyncIterable<SessionMessage> {
+    switch (sdkMessage.type) {
+      case "system":
+        yield* this.#handleSystemMessage(sdkMessage);
+        break;
+      case "assistant":
+        yield* this.#handleAssistantMessage(sdkMessage);
+        break;
+      case "user":
+        yield* this.#handleUserMessage(sdkMessage);
+        break;
+      case "result":
+        yield* this.#handleResultMessage(sdkMessage);
+        break;
+    }
+  }
+
+  async *#handleSystemMessage(sdkMessage: SDKSystemMessage): AsyncIterable<SessionMessage> {
+    // Skip system init messages
+    if (sdkMessage.subtype === "init") {
+      return;
+    }
+    yield {
+      type: "assistant_message",
+      msgId: crypto.randomUUID(),
+      content: JSON.stringify(sdkMessage)
+    };
+  }
+
+  async *#handleAssistantMessage(sdkMessage: SDKAssistantMessage): AsyncIterable<SessionMessage> {
+    yield {
+      type: "assistant_message",
+      msgId: crypto.randomUUID(),
+      content: JSON.stringify(sdkMessage)
+    };
+  }
+
+  async *#handleUserMessage(sdkMessage: SDKUserMessage): AsyncIterable<SessionMessage> {
+    // ツール結果を個別に処理
+    const content = sdkMessage.message.content;
+    if (Array.isArray(content)) {
+      for (const item of content) {
+        yield* this.#handleContentItem(item);
+      }
+    }
+  }
+
+  async *#handleContentItem(item: ContentBlockParam): AsyncIterable<SessionMessage> {
+    switch (item.type) {
+      case "tool_result":
+        yield* this.#handleToolResult(item);
+        break;
+      default:
+        yield {
+          type: "assistant_message",
+          msgId: crypto.randomUUID(),
+          content: JSON.stringify(item)
+        };
+        break;
+    }
+  }
+
+  async *#handleToolResult(item: ToolResultBlockParam): AsyncIterable<SessionMessage> {
+    if (typeof item.content === 'string') {
+      yield {
+        type: "tool_result_message",
+        msgId: crypto.randomUUID(),
+        output: { type: "text", text: item.content }
+      };
+    } else if (Array.isArray(item.content)) {
+      for (const x of item.content) {
+        yield* this.#handleToolResultContent(x);
+      }
+    } else if (item.content === undefined) {
+      // Handle case where content is undefined
+      yield {
+        type: "tool_result_message",
+        msgId: crypto.randomUUID(),
+        output: { type: "text", text: "" }
+      };
+    }
+  }
+
+  async *#handleToolResultContent(x: TextBlockParam | ImageBlockParam): AsyncIterable<SessionMessage> {
+    switch (x.type) {
+      case "text":
+        yield {
+          type: "tool_result_message",
+          msgId: crypto.randomUUID(),
+          output: { type: "text", text: x.text }
+        };
+        break;
+      case "image":
+        yield {
+          type: "tool_result_message",
+          msgId: crypto.randomUUID(),
+          output: { 
+            type: "image", 
+            uri: x.source.type === "base64" 
+              ? `data:${(x.source as Base64ImageSource).media_type};base64,${(x.source as Base64ImageSource).data}` 
+              : (x.source as { url: string }).url 
+          }
+        };
+        break;
+    }
+  }
+
+  async *#handleResultMessage(sdkMessage: SDKResultMessage): AsyncIterable<SessionMessage> {
+    switch (sdkMessage.subtype) {
+      case "success":
+        yield {
+          type: "assistant_message",
+          msgId: crypto.randomUUID(),
+          content: sdkMessage.result
+        };
+        break;
+      case "error_during_execution":
+        yield {
+          type: "assistant_message",
+          msgId: crypto.randomUUID(),
+          content: 'エラーが発生しました',
+        };
+        break;
+      case "error_max_turns":
+        yield {
+          type: "assistant_message",
+          msgId: crypto.randomUUID(),
+          content: '最大ターン数に達しました',
+        };
+        break;
     }
   }
 
