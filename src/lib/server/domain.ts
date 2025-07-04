@@ -112,6 +112,7 @@ export interface SessionHandler {
     sessionId(): string;
     pushMessage(massage: string): Promise<void | Error>;
     listenEvent(listener: (event: ServerEvent, unsubnscribe: () => void) => void): { unsubscribe(): void };
+    getAllMessages(): SessionMessage[];
     answerApproval(approvalId: string, data: CodingApproval): Promise<void>;
     close(): Promise<void>;
 }
