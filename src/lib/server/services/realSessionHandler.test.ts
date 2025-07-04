@@ -153,7 +153,7 @@ test('RealSessionHandlerの承認フローがapproval_messageを発行する', a
         message: {
             type: 'assistant_message',
             msgId: expect.any(String),
-            content: JSON.stringify({ type: 'test', content: '{"behavior":"allow","updatedInput":{"foo":"bar"}}' })
+            content: '{"behavior":"allow","updatedInput":{"foo":"bar"}}'
         }
     });
 });

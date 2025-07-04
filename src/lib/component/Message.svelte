@@ -1,40 +1,36 @@
 <script lang="ts">
 	import { marked } from "marked";
+	import type { SessionMessage } from "$lib/server/domain";
 
-	interface Message {
-		role: "user" | "assistant";
-		content?: string;
-		toolOutput?:
-			| { type: "image"; uri: string }
-			| { type: "text"; text: string };
-		type?: "text" | "tool_result";
-	}
-
-	let { message }: { message: Message } = $props();
+	let { message }: { message: SessionMessage } = $props();
 
 	function parseMarkdown(content: string): string {
 		return marked(content, { async: false });
 	}
 </script>
 
-{#if message.type === "tool_result"}
-	<div class="message {message.role} tool-result">
-		{#if message.toolOutput?.type === "text"}
-			<pre class="tool-output-text">{message.toolOutput.text}</pre>
-		{:else if message.toolOutput?.type === "image"}
+{#if message.type === "tool_result_message"}
+	<div class="message assistant tool-result">
+		{#if message.output.type === "text"}
+			<pre class="tool-output-text">{message.output.text}</pre>
+		{:else if message.output.type === "image"}
 			<img
-				src={message.toolOutput.uri}
+				src={message.output.uri}
 				alt="ツール実行結果の画像"
 				class="tool-result-image"
 			/>
 		{/if}
 	</div>
-{:else}
-	<div class="message {message.role}">
+{:else if message.type === "user_message"}
+	<div class="message user">
 		<div class="message-content">
-			{#if message.content}
-				{@html parseMarkdown(message.content)}
-			{/if}
+			{@html parseMarkdown(message.content)}
+		</div>
+	</div>
+{:else if message.type === "assistant_message"}
+	<div class="message assistant">
+		<div class="message-content">
+			{@html parseMarkdown(message.content)}
 		</div>
 	</div>
 {/if}

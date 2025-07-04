@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ClientEvent, ServerEvent } from "$lib/server/domain";
+	import type { ClientEvent, ServerEvent, SessionMessage } from "$lib/server/domain";
 	import { onMount, untrack } from "svelte";
 	import Message from "./Message.svelte";
 	import ApprovalRequest from "./ApprovalRequest.svelte";
@@ -7,20 +7,12 @@
 
 	let { sessionId }: { sessionId: string } = $props();
 
-	interface MessageType {
-		role: "user" | "assistant";
-		content?: string;
-		toolOutput?:
-			| { type: "image"; uri: string }
-			| { type: "text"; text: string };
-		type?: "text" | "tool_result" | "approval_request";
-		approvalId?: string;
-		approvalData?: any;
+	type UIMessage = SessionMessage & {
+		// UI固有の状態を追加（approval_message専用）
 		approvalStatus?: "pending" | "approved" | "denied";
-	}
+	};
 
-
-	let messages = $state<MessageType[]>([]);
+	let messages = $state<UIMessage[]>([]);
 	let socket = $state<WebSocket | null>(null);
 	let messagesContainer = $state<HTMLElement>();
 	let isConnected = $state(false);
@@ -83,44 +75,16 @@
 			case "push_message":
 				switch (data.message.type) {
 					case "user_message":
-						messages = [
-							...messages,
-							{ role: "user", content: data.message.content },
-						];
-						break;
 					case "assistant_message":
-						messages = [
-							...messages,
-							{
-								role: "assistant",
-								type: "text",
-								content: data.message.content,
-							},
-						];
-						break;
 					case "tool_result_message":
-						messages = [
-							...messages,
-							{
-								role: "assistant",
-								type: "tool_result",
-								toolOutput: data.message.output,
-							},
-						];
+						messages = [...messages, data.message];
 						break;
 					case "approval_message":
 						if (data.message.response === null) {
-							// 新しい承認リクエスト - メッセージとして追加
+							// 新しい承認リクエスト - pending状態で追加
 							messages = [
 								...messages,
-								{
-									role: "assistant",
-									type: "approval_request",
-									content: "許可リクエスト",
-									approvalId: data.message.approvalId,
-									approvalData: data.message.request,
-									approvalStatus: "pending",
-								},
+								{ ...data.message, approvalStatus: "pending" },
 							];
 						}
 						break;
@@ -130,10 +94,10 @@
 				if (data.message.type === "approval_message" && data.message.response !== null) {
 					// 承認レスポンスが更新された - メッセージのステータスを更新
 					messages = messages.map(msg => {
-						if (msg.approvalId === data.message.approvalId) {
+						if (msg.type === "approval_message" && msg.approvalId === data.message.approvalId) {
 							return {
 								...msg,
-								approvalStatus: data.message.response.behavior === "allow" ? "approved" : "denied"
+								approvalStatus: data.message.response!.behavior === "allow" ? "approved" : "denied"
 							};
 						}
 						return msg;
@@ -181,7 +145,7 @@
 		socket.send(JSON.stringify(approvalMessage));
 		// メッセージのステータスを即座に更新
 		messages = messages.map(msg => {
-			if (msg.approvalId === event.approvalId) {
+			if (msg.type === "approval_message" && msg.approvalId === event.approvalId) {
 				return { ...msg, approvalStatus: "approved" };
 			}
 			return msg;
@@ -206,7 +170,7 @@
 		socket.send(JSON.stringify(approvalMessage));
 		// メッセージのステータスを即座に更新
 		messages = messages.map(msg => {
-			if (msg.approvalId === event.approvalId) {
+			if (msg.type === "approval_message" && msg.approvalId === event.approvalId) {
 				return { ...msg, approvalStatus: "denied" };
 			}
 			return msg;
@@ -222,11 +186,11 @@
 	<div class="chat-container">
 		<div class="messages" bind:this={messagesContainer}>
 			{#each messages as message}
-				{#if message.type === "approval_request"}
+				{#if message.type === "approval_message"}
 					<ApprovalRequest
 						approvalRequest={{
-							approvalId: message.approvalId!,
-							data: message.approvalData
+							approvalId: message.approvalId,
+							data: message.request
 						}}
 						approvalStatus={message.approvalStatus}
 						onapprove={handleApproval}
@@ -240,7 +204,7 @@
 
 		<ChatInput
 			{isConnected}
-			isDisabled={messages.some(msg => msg.approvalStatus === "pending")}
+			isDisabled={messages.some(msg => msg.type === "approval_message" && msg.approvalStatus === "pending")}
 			onsend={sendMessage}
 			onclear={clearChat}
 		/>
