@@ -1,6 +1,6 @@
 import type { SessionMessage, CodingAgent, CodingAgentFactory, CodingApproval } from "$lib/server/domain";
 import { query, type SDKAssistantMessage, type SDKMessage, type SDKResultMessage, type SDKSystemMessage, type SDKUserMessage } from '@anthropic-ai/claude-code';
-import type { ContentBlockParam, TextBlockParam, ImageBlockParam, Base64ImageSource, ToolResultBlockParam } from '@anthropic-ai/sdk/resources/messages';
+import type { ContentBlockParam, TextBlockParam, ImageBlockParam, Base64ImageSource, ToolResultBlockParam, ContentBlock, TextBlock, ToolUseBlock } from '@anthropic-ai/sdk/resources/messages';
 import type { PermissionMcpServer } from "./permissionMcp";
 
 export class ClaudeCodingAgent implements CodingAgent {
@@ -92,11 +92,64 @@ export class ClaudeCodingAgent implements CodingAgent {
   }
 
   async *#handleAssistantMessage(sdkMessage: SDKAssistantMessage): AsyncIterable<SessionMessage> {
-    yield {
-      type: "assistant_message",
-      msgId: crypto.randomUUID(),
-      content: JSON.stringify(sdkMessage)
-    };
+    const content = sdkMessage.message.content;
+    if (Array.isArray(content)) {
+      for (const item of content) {
+        yield* this.#handleAssistantContentItem(item);
+      }
+    } else if (typeof content === 'string') {
+      yield {
+        type: "assistant_message",
+        msgId: crypto.randomUUID(),
+        content: content
+      };
+    } else {
+      yield {
+        type: "assistant_message",
+        msgId: crypto.randomUUID(),
+        content: JSON.stringify(sdkMessage)
+      };
+    }
+  }
+
+  async *#handleAssistantContentItem(item: ContentBlock): AsyncIterable<SessionMessage> {
+    switch (item.type) {
+      case "text":
+        yield {
+          type: "assistant_message",
+          msgId: crypto.randomUUID(),
+          content: item.text
+        };
+        break;
+      case "tool_use":
+        yield {
+          type: "assistant_message",
+          msgId: crypto.randomUUID(),
+          content: `Tool: ${item.name}\nInput: ${JSON.stringify(item.input, null, 2)}`
+        };
+        break;
+      case "thinking":
+        yield {
+          type: "assistant_message",
+          msgId: crypto.randomUUID(),
+          content: `Thinking: ${item.thinking}`
+        };
+        break;
+      case "server_tool_use":
+        yield {
+          type: "assistant_message",
+          msgId: crypto.randomUUID(),
+          content: `Server Tool: ${item.name}\nInput: ${JSON.stringify(item.input, null, 2)}`
+        };
+        break;
+      default:
+        yield {
+          type: "assistant_message",
+          msgId: crypto.randomUUID(),
+          content: JSON.stringify(item)
+        };
+        break;
+    }
   }
 
   async *#handleUserMessage(sdkMessage: SDKUserMessage): AsyncIterable<SessionMessage> {
@@ -106,6 +159,12 @@ export class ClaudeCodingAgent implements CodingAgent {
       for (const item of content) {
         yield* this.#handleContentItem(item);
       }
+    } else {
+      yield {
+        type: "assistant_message",
+        msgId: crypto.randomUUID(),
+        content: JSON.stringify(sdkMessage)
+      };
     }
   }
 
@@ -158,11 +217,11 @@ export class ClaudeCodingAgent implements CodingAgent {
         yield {
           type: "tool_result_message",
           msgId: crypto.randomUUID(),
-          output: { 
-            type: "image", 
-            uri: x.source.type === "base64" 
-              ? `data:${(x.source as Base64ImageSource).media_type};base64,${(x.source as Base64ImageSource).data}` 
-              : (x.source as { url: string }).url 
+          output: {
+            type: "image",
+            uri: x.source.type === "base64"
+              ? `data:${(x.source as Base64ImageSource).media_type};base64,${(x.source as Base64ImageSource).data}`
+              : (x.source as { url: string }).url
           }
         };
         break;
