@@ -16,6 +16,7 @@
 	let messagesContainer = $state<HTMLElement>();
 	let isConnected = $state(false);
 	let sessionStatus = $state<SessionStatus | null>(null);
+	let cwd = $state<string | undefined>(undefined);
 
 	onMount(async () => {
 		console.log("Connecting to WebSocket for session:", sessionId);
@@ -55,6 +56,7 @@
 			if (response.ok) {
 				const data = await response.json();
 				sessionStatus = data.status;
+				cwd = data.status.cwd;
 			}
 		} catch (error) {
 			console.error("Failed to load session status:", error);
@@ -151,6 +153,7 @@
 				break;
 			case "update_session_status":
 				sessionStatus = data.status;
+				cwd = data.status.cwd;
 				break;
 		}
 	}
@@ -264,7 +267,7 @@
 
 <div class="grow overflow-y-auto" bind:this={messagesContainer}>
 	{#each messages as message}
-		<Message {message} onapprove={handleApproval} ondeny={handleDenial} />
+		<Message {message} {cwd} onapprove={handleApproval} ondeny={handleDenial} />
 	{/each}
 </div>
 
