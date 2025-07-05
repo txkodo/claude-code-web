@@ -9,15 +9,11 @@
 		isExpanded = !isExpanded;
 	}
 	
-	function truncateCommand(input: any): string {
+	function getCommand(input: any): string {
 		if (typeof input === 'object' && input !== null && 'command' in input) {
-			const command = input.command;
-			if (typeof command === 'string' && command.length > 50) {
-				return command.substring(0, 50) + '...';
-			}
-			return command;
+			return input.command;
 		}
-		return JSON.stringify(input).substring(0, 50) + '...';
+		return JSON.stringify(input);
 	}
 	
 	function getFilePath(input: any): string {
@@ -46,36 +42,56 @@
 </script>
 
 <div
-	class="my-3 p-3 px-4 bg-purple-50 border border-purple-200 rounded-lg max-w-[80%] mr-auto relative"
+	class="my-3 p-3 px-4 bg-purple-50 border border-purple-200 rounded-lg w-full relative"
 >
 	<button 
-		class="flex items-center justify-between cursor-pointer w-full text-left p-0 bg-transparent border-0 hover:bg-purple-100 rounded transition-colors"
+		class="cursor-pointer w-full text-left p-0 bg-transparent border-0 hover:bg-purple-100 rounded transition-colors"
 		onclick={toggleExpanded}
 		aria-expanded={isExpanded}
 		aria-label="ツール実行詳細を{isExpanded ? '閉じる' : '開く'}"
 	>
-		<div class="text-sm font-medium text-purple-800 flex items-center gap-2">
-			🔧 {message.name}
-			{#if message.name === 'Bash'}
-				<span class="text-xs text-purple-600 font-mono">
-					({truncateCommand(message.input)})
-				</span>
-			{:else if message.name === 'Edit' || message.name === 'Read'}
-				<span class="text-xs text-purple-600 font-mono">
-					({getFilePath(message.input)})
-				</span>
-			{/if}
-		</div>
-		<div class="flex items-center gap-2">
-			{#if message.output === null}
-				<div class="text-xs text-purple-600">実行中...</div>
-			{:else}
-				<div class="text-xs text-green-600">✅</div>
-			{/if}
-			<span class="text-purple-600 hover:text-purple-800 text-sm">
-				{isExpanded ? '▼' : '▶'}
-			</span>
-		</div>
+		{#if message.name === 'Bash' || message.name === 'Edit' || message.name === 'Read'}
+			<!-- Bash/Edit/Readの場合は二行構成 -->
+			<div class="flex items-center justify-between mb-1">
+				<div class="text-sm font-medium text-purple-800 flex items-center gap-2">
+					🔧 {message.name}
+				</div>
+				<div class="flex items-center gap-2">
+					{#if message.output === null}
+						<div class="text-xs text-purple-600">実行中...</div>
+					{:else}
+						<div class="text-xs text-green-600">✅</div>
+					{/if}
+					<span class="text-purple-600 hover:text-purple-800 text-sm">
+						{isExpanded ? '▼' : '▶'}
+					</span>
+				</div>
+			</div>
+			<div class="text-xs text-purple-600 font-mono break-words">
+				{#if message.name === 'Bash'}
+					{getCommand(message.input)}
+				{:else if message.name === 'Edit' || message.name === 'Read'}
+					{getFilePath(message.input)}
+				{/if}
+			</div>
+		{:else}
+			<!-- その他のツールは一行構成 -->
+			<div class="flex items-center justify-between">
+				<div class="text-sm font-medium text-purple-800 flex items-center gap-2">
+					🔧 {message.name}
+				</div>
+				<div class="flex items-center gap-2">
+					{#if message.output === null}
+						<div class="text-xs text-purple-600">実行中...</div>
+					{:else}
+						<div class="text-xs text-green-600">✅</div>
+					{/if}
+					<span class="text-purple-600 hover:text-purple-800 text-sm">
+						{isExpanded ? '▼' : '▶'}
+					</span>
+				</div>
+			</div>
+		{/if}
 	</button>
 	
 	{#if isExpanded}
