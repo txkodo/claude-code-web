@@ -1,48 +1,47 @@
 <script lang="ts">
-	interface ApprovalRequest {
-		approvalId: string;
-		data: any;
-	}
+	import type { SessionMessage } from "$lib/server/domain";
 
 	let {
-		approvalRequest,
-		approvalStatus,
+		message,
 		onapprove,
-		ondeny,
+		ondeny
 	}: {
-		approvalRequest: ApprovalRequest;
-		approvalStatus?: "pending" | "approved" | "denied";
-		onapprove: (event: { approvalId: string; data: any }) => void;
-		ondeny: (event: { approvalId: string; message?: string }) => void;
+		message: SessionMessage.ApprovalMessage;
+		onapprove?: (event: { approvalId: string; data: any }) => void;
+		ondeny?: (event: { approvalId: string; message?: string }) => void;
 	} = $props();
 
 	function handleApprove() {
-		onapprove({
-			approvalId: approvalRequest.approvalId,
-			data: approvalRequest.data,
-		});
+		if (onapprove) {
+			onapprove({
+				approvalId: message.approvalId,
+				data: message.request,
+			});
+		}
 	}
 
 	function handleDeny() {
-		ondeny({
-			approvalId: approvalRequest.approvalId,
-			message: "拒否されました",
-		});
+		if (ondeny) {
+			ondeny({
+				approvalId: message.approvalId,
+				message: "拒否されました",
+			});
+		}
 	}
 </script>
 
 <div
-	class="rounded-lg p-4 mb-4 {approvalStatus === 'approved'
+	class="rounded-lg p-4 mb-4 {message.response?.behavior === 'allow'
 		? 'bg-green-100 border border-green-200'
-		: approvalStatus === 'denied'
+		: message.response?.behavior === 'deny'
 			? 'bg-red-100 border border-red-200'
 			: 'bg-yellow-100 border border-yellow-200'}"
 >
 	<div class="mb-3">
 		<h3 class="m-0 text-yellow-800 text-base">
-			{#if approvalStatus === "approved"}
+			{#if message.response?.behavior === "allow"}
 				✅ 承認済み
-			{:else if approvalStatus === "denied"}
+			{:else if message.response?.behavior === "deny"}
 				❌ 拒否済み
 			{:else}
 				⏳ 承認が必要です
@@ -55,12 +54,12 @@
 		</p>
 		<pre
 			class="bg-gray-50 border border-gray-200 rounded p-3 text-xs overflow-x-auto text-gray-700">{JSON.stringify(
-				approvalRequest.data,
+				message.request,
 				null,
 				2,
 			)}</pre>
 	</div>
-	{#if approvalStatus === "pending" || !approvalStatus}
+	{#if !message.response}
 		<div class="flex gap-2">
 			<button
 				class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white border-none rounded cursor-pointer text-sm transition-colors duration-200"

@@ -6,17 +6,11 @@
 	} from "$lib/server/domain";
 	import { onMount, untrack } from "svelte";
 	import Message from "./Message.svelte";
-	import ApprovalRequest from "./ApprovalRequest.svelte";
 	import ChatInput from "./ChatInput.svelte";
 
 	let { sessionId }: { sessionId: string } = $props();
 
-	type UIMessage = SessionMessage & {
-		// UI固有の状態を追加（approval_message専用）
-		approvalStatus?: "pending" | "approved" | "denied";
-	};
-
-	let messages = $state<UIMessage[]>([]);
+	let messages = $state<SessionMessage[]>([]);
 	let socket = $state<WebSocket | null>(null);
 	let messagesContainer = $state<HTMLElement>();
 	let isConnected = $state(false);
@@ -45,20 +39,7 @@
 			const response = await fetch(`/api/session/${sessionId}/messages`);
 			if (response.ok) {
 				const data = await response.json();
-				messages = data.messages.map((msg: SessionMessage) => {
-					if (msg.type === "approval_message") {
-						return {
-							...msg,
-							approvalStatus:
-								msg.response === null
-									? "pending"
-									: msg.response.behavior === "allow"
-										? "approved"
-										: "denied",
-						};
-					}
-					return msg;
-				});
+				messages = data.messages;
 			}
 		} catch (error) {
 			console.error("Failed to load messages:", error);
@@ -189,16 +170,6 @@
 		};
 
 		socket.send(JSON.stringify(approvalMessage));
-		// メッセージのステータスを即座に更新
-		messages = messages.map((msg) => {
-			if (
-				msg.type === "approval_message" &&
-				msg.approvalId === event.approvalId
-			) {
-				return { ...msg, approvalStatus: "approved" };
-			}
-			return msg;
-		});
 	}
 
 	function handleDenial(event: { approvalId: string; message?: string }) {
@@ -215,16 +186,6 @@
 		};
 
 		socket.send(JSON.stringify(approvalMessage));
-		// メッセージのステータスを即座に更新
-		messages = messages.map((msg) => {
-			if (
-				msg.type === "approval_message" &&
-				msg.approvalId === event.approvalId
-			) {
-				return { ...msg, approvalStatus: "denied" };
-			}
-			return msg;
-		});
 	}
 
 	function sendApprovalNotification(request: any) {
@@ -273,19 +234,7 @@
 <div class="flex flex-col h-[100vh] p-3">
 	<div class="flex-1 overflow-y-auto" bind:this={messagesContainer}>
 		{#each messages as message}
-			{#if message.type === "approval_message"}
-				<ApprovalRequest
-					approvalRequest={{
-						approvalId: message.approvalId,
-						data: message.request,
-					}}
-					approvalStatus={message.approvalStatus}
-					onapprove={handleApproval}
-					ondeny={handleDenial}
-				/>
-			{:else}
-				<Message {message} />
-			{/if}
+			<Message {message} onapprove={handleApproval} ondeny={handleDenial} />
 		{/each}
 	</div>
 
@@ -294,7 +243,7 @@
 		isDisabled={messages.some(
 			(msg) =>
 				msg.type === "approval_message" &&
-				msg.approvalStatus === "pending",
+				!msg.response,
 		)}
 		onsend={sendMessage}
 		onclear={clearChat}
