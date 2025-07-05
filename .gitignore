@@ -67,3 +67,6 @@ temp/
 
 # Bun
 .bun
+
+# SSL certificates
+certs/

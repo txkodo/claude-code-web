@@ -73,7 +73,12 @@
 	});
 
 	function connectSocket() {
-		const wsUrl = `ws://localhost:3001/api/ws`;
+		// 現在のページのプロトコルとホストを使用してWSS URLを構築
+		const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+		const host = window.location.host;
+		const wsUrl = `${protocol}//${host}/api/ws`;
+		console.log("Attempting WebSocket connection to:", wsUrl);
+
 		socket = new WebSocket(wsUrl);
 
 		socket.onopen = () => {
@@ -97,8 +102,8 @@
 			}
 		};
 
-		socket.onclose = () => {
-			console.log("WebSocket disconnected");
+		socket.onclose = (event) => {
+			console.log("WebSocket disconnected", event.code, event.reason);
 			isConnected = false;
 		};
 
