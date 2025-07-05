@@ -3,6 +3,7 @@
 	import UserMessage from "./UserMessage.svelte";
 	import AssistantMessage from "./AssistantMessage.svelte";
 	import ToolResultMessage from "./ToolResultMessage.svelte";
+	import ToolUseMessage from "./ToolUseMessage.svelte";
 	import ApprovalMessage from "./ApprovalMessage.svelte";
 	import DebugMessage from "./DebugMessage.svelte";
 
@@ -23,6 +24,8 @@
 	<AssistantMessage {message} />
 {:else if message.type === "tool_result_message"}
 	<ToolResultMessage {message} />
+{:else if message.type === "tool_use_message"}
+	<ToolUseMessage {message} />
 {:else if message.type === "approval_message"}
 	<ApprovalMessage {message} {onapprove} {ondeny} />
 {:else if message.type === "debug_message"}

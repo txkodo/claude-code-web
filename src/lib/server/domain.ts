@@ -5,7 +5,8 @@ export type SessionMessage =
     | SessionMessage.AssistantMessage
     | SessionMessage.ToolResultMessage
     | SessionMessage.ApprovalMessage
-    | SessionMessage.DebugMessage;
+    | SessionMessage.DebugMessage
+    | SessionMessage.ToolUseMessage;
 
 export namespace SessionMessage {
     export type UserMessage = {
@@ -22,6 +23,12 @@ export namespace SessionMessage {
         type: "tool_result_message";
         msgId: string;
         output: { type: "image"; uri: string; } | { type: "text"; text: string; };
+    }
+    export type ToolUseMessage = {
+        type: "tool_use_message";
+        msgId: string;
+        name: string;
+        input: unknown;
     }
     export type ApprovalMessage = {
         type: "approval_message";

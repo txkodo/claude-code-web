@@ -99,7 +99,7 @@ export class ClaudeCodingAgent implements CodingAgent {
       }
     } else if (typeof content === 'string') {
       yield {
-        type: "debug_message",
+        type: "assistant_message",
         msgId: crypto.randomUUID(),
         content: content
       };
@@ -125,7 +125,8 @@ export class ClaudeCodingAgent implements CodingAgent {
         yield {
           type: "debug_message",
           msgId: crypto.randomUUID(),
-          content: `Tool: ${item.name}\nInput: ${JSON.stringify(item.input, null, 2)}`
+          name: item.name,
+          input: item.input
         };
         break;
       case "thinking":
