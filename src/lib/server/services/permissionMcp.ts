@@ -52,8 +52,8 @@ export class PermissionMcpServer {
                 console.log(`Unsubscribing from permission prompt for ID: ${subscriptionId}`);
                 this.#transports.delete(subscriptionId);
                 tool.disable();
-                transport.close();
                 server.close();
+                transport.close();
             },
             mcpServerConfig: { type: "http", url: this.#url(subscriptionId) }, toolName: `approval_prompt`
         }
