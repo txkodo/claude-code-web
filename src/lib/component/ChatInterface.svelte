@@ -3,6 +3,7 @@
 		ClientEvent,
 		ServerEvent,
 		SessionMessage,
+		SessionStatus,
 	} from "$lib/server/domain";
 	import { onMount, untrack } from "svelte";
 	import Message from "./Message.svelte";
@@ -14,11 +15,13 @@
 	let socket = $state<WebSocket | null>(null);
 	let messagesContainer = $state<HTMLElement>();
 	let isConnected = $state(false);
+	let sessionStatus = $state<SessionStatus | null>(null);
 
 	onMount(async () => {
 		console.log("Connecting to WebSocket for session:", sessionId);
 		await requestNotificationPermission();
 		await loadMessages();
+		await loadSessionStatus();
 		connectSocket();
 		return () => {
 			if (socket) {
@@ -43,6 +46,18 @@
 			}
 		} catch (error) {
 			console.error("Failed to load messages:", error);
+		}
+	}
+
+	async function loadSessionStatus() {
+		try {
+			const response = await fetch(`/api/session/${sessionId}/status`);
+			if (response.ok) {
+				const data = await response.json();
+				sessionStatus = data.status;
+			}
+		} catch (error) {
+			console.error("Failed to load session status:", error);
 		}
 	}
 
@@ -134,6 +149,9 @@
 					return msg;
 				});
 				break;
+			case "update_session_status":
+				sessionStatus = data.status;
+				break;
 		}
 	}
 
@@ -153,6 +171,19 @@
 		};
 
 		socket.send(JSON.stringify(message));
+	}
+
+	async function cancelMessage() {
+		try {
+			const response = await fetch(`/api/session/${sessionId}/cancel`, {
+				method: "POST",
+			});
+			if (!response.ok) {
+				console.error("Failed to cancel session:", response.statusText);
+			}
+		} catch (error) {
+			console.error("Failed to cancel session:", error);
+		}
 	}
 
 	function clearChat() {
@@ -231,21 +262,20 @@
 	}
 </script>
 
-<div class="flex flex-col h-[100vh] p-3">
-	<div class="flex-1 overflow-y-auto" bind:this={messagesContainer}>
-		{#each messages as message}
-			<Message {message} onapprove={handleApproval} ondeny={handleDenial} />
-		{/each}
-	</div>
+<div class="grow overflow-y-auto" bind:this={messagesContainer}>
+	{#each messages as message}
+		<Message {message} onapprove={handleApproval} ondeny={handleDenial} />
+	{/each}
+</div>
 
+<div class="mb-3">
 	<ChatInput
 		{isConnected}
+		{sessionStatus}
 		isDisabled={messages.some(
-			(msg) =>
-				msg.type === "approval_message" &&
-				!msg.response,
+			(msg) => msg.type === "approval_message" && !msg.response,
 		)}
 		onsend={sendMessage}
-		onclear={clearChat}
+		oncancel={cancelMessage}
 	/>
 </div>

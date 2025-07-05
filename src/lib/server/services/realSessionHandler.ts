@@ -1,4 +1,4 @@
-import type { CodingAgent, CodingAgentFactory, CodingApproval, ServerEvent, SessionHandler, SessionHandlerFactory, SessionMessage, SessionMessageChange } from "$lib/server/domain";
+import type { CodingAgent, CodingAgentFactory, CodingApproval, ServerEvent, SessionHandler, SessionHandlerFactory, SessionMessage, SessionMessageChange, SessionStatus } from "$lib/server/domain";
 
 export class RealSessionHandler implements SessionHandler {
   #codingAgent: CodingAgent;
@@ -7,14 +7,18 @@ export class RealSessionHandler implements SessionHandler {
   #busy: boolean = false;
   #approvalMessages: Map<string, SessionMessage.ApprovalMessage> = new Map();
   #messages: SessionMessage[] = [];
+  #cwd: string;
+  #abortController: AbortController | null = null;
 
   constructor(props: {
     sessionId: string,
-    agent: CodingAgent
+    agent: CodingAgent,
+    cwd: string
   }) {
     this.#codingAgent = props.agent;
     this.#sessionId = props.sessionId;
     this.#handlers = [];
+    this.#cwd = props.cwd;
   }
 
   sessionId(): string {
@@ -26,6 +30,8 @@ export class RealSessionHandler implements SessionHandler {
       return new Error('作業中です.');
     }
     this.#busy = true;
+    this.#abortController = new AbortController();
+    this.#emitEvent({ type: "update_session_status", sessionId: this.#sessionId, status: this.getStatus() });
 
     const process = async () => {
       try {
@@ -38,6 +44,7 @@ export class RealSessionHandler implements SessionHandler {
 
         const iter = this.#codingAgent.process({
           prompt: message,
+          abortSignal: this.#abortController?.signal,
           permitAction: (data) => {
             // ID付きのイベントを発行し、ユーザーからの応答を待つ
             const approvalId = crypto.randomUUID();
@@ -50,6 +57,7 @@ export class RealSessionHandler implements SessionHandler {
             };
             this.#approvalMessages.set(approvalId, approvalMessage);
             this.#emitEvent({ type: "push_message", sessionId: this.#sessionId, message: approvalMessage });
+            this.#emitEvent({ type: "update_session_status", sessionId: this.#sessionId, status: this.getStatus() });
             return new Promise<CodingApproval>((resolve) => {
               this.listenEvent((event, unsubscribe) => {
                 if (event.type === "update_message" && event.message.type === "approval_message" && event.message.approvalId === approvalId && event.message.response) {
@@ -65,9 +73,15 @@ export class RealSessionHandler implements SessionHandler {
         }
       }
       catch (error) {
-        console.error("Error in session handler:", error);
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.log("Session processing was cancelled");
+        } else {
+          console.error("Error in session handler:", error);
+        }
       } finally {
         this.#busy = false;
+        this.#abortController = null;
+        this.#emitEvent({ type: "update_session_status", sessionId: this.#sessionId, status: this.getStatus() });
       }
     }
 
@@ -87,6 +101,7 @@ export class RealSessionHandler implements SessionHandler {
     };
     this.#approvalMessages.set(approvalId, updatedMessage);
     this.#emitEvent({ type: "update_message", sessionId: this.#sessionId, message: updatedMessage });
+    this.#emitEvent({ type: "update_session_status", sessionId: this.#sessionId, status: this.getStatus() });
   }
 
   listenEvent(listener: (event: ServerEvent, unsubnscribe: () => void) => void): { unsubscribe(): void; } {
@@ -103,6 +118,24 @@ export class RealSessionHandler implements SessionHandler {
 
   async close(): Promise<void> {
     return
+  }
+
+  getStatus(): SessionStatus {
+    let status: SessionStatus["status"] = "idle";
+    if (this.#busy) {
+      const hasWaitingApproval = Array.from(this.#approvalMessages.values()).some(msg => msg.response === null);
+      status = hasWaitingApproval ? "waiting_for_approval" : "running";
+    }
+    return {
+      status,
+      cwd: this.#cwd
+    };
+  }
+
+  async cancel(): Promise<void> {
+    if (this.#abortController) {
+      this.#abortController.abort();
+    }
   }
 
   #emitEvent(event: ServerEvent): void {
@@ -138,7 +171,8 @@ export class RealSessionHandlerFactory implements SessionHandlerFactory {
   createSession(cwd: string, id: string): SessionHandler {
     return new RealSessionHandler({
       sessionId: id,
-      agent: this.#codingAgentFactory.createAgent(cwd)
+      agent: this.#codingAgentFactory.createAgent(cwd),
+      cwd
     });
   }
 }

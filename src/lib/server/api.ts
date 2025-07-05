@@ -123,6 +123,27 @@ export const apiRouter = new Hono()
         }
         const messages = session.getAllMessages();
         return c.json({ messages });
+    })
+    .get('/session/:sessionId/status', async (c) => {
+        const sessionId = c.req.param('sessionId');
+        const status = sessionManager.getSessionStatus(sessionId);
+        if (!status) {
+            return c.json({ error: 'Session not found' }, 404);
+        }
+        return c.json({ status });
+    })
+    .post('/session/:sessionId/cancel', async (c) => {
+        const sessionId = c.req.param('sessionId');
+        const session = sessionManager.getSessionById(sessionId);
+        if (!session) {
+            return c.json({ error: 'Session not found' }, 404);
+        }
+        try {
+            await session.cancel();
+            return c.json({ success: true });
+        } catch (error) {
+            return c.json({ error: error instanceof Error ? error.message : 'Unknown error' }, 500);
+        }
     });
 
 export type ApiRouter = typeof apiRouter;

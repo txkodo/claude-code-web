@@ -3,8 +3,10 @@
 	import { goto } from "$app/navigation";
 	import DirectorySelector from "$lib/component/DirectorySelector.svelte";
 	import { apiClient } from "$lib/client/api.svelte";
+	import type { SessionStatus } from "$lib/server/domain";
 
 	let sessionIds: string[] = $state([]);
+	let sessionStatuses: Map<string, SessionStatus> = $state(new Map());
 	let isLoading = $state(false);
 	let showCreateForm = $state(false);
 	let selectedDirectory = $state<string | null>(null);
@@ -20,6 +22,22 @@
 				.$get()
 				.then((res) => res.json());
 			sessionIds = res.sessionIds;
+			
+			// Load status for each session
+			const statusPromises = sessionIds.map(async (sessionId) => {
+				try {
+					const statusRes = await apiClient.session[":sessionId"].status
+						.$get({ param: { sessionId } })
+						.then((res) => res.json());
+					return [sessionId, statusRes.status] as const;
+				} catch (error) {
+					console.error(`Failed to load status for session ${sessionId}:`, error);
+					return null;
+				}
+			});
+			
+			const statuses = await Promise.all(statusPromises);
+			sessionStatuses = new Map(statuses.filter(Boolean));
 		} catch (error) {
 			console.error("Failed to load sessions:", error);
 		} finally {
@@ -50,6 +68,32 @@
 	function formatDate(date: string | Date): string {
 		const d = new Date(date);
 		return d.toLocaleString("ja-JP");
+	}
+
+	function getStatusColor(status: SessionStatus["status"]): string {
+		switch (status) {
+			case "running":
+				return "bg-green-500";
+			case "waiting_for_approval":
+				return "bg-yellow-500";
+			case "idle":
+				return "bg-gray-500";
+			default:
+				return "bg-gray-500";
+		}
+	}
+
+	function getStatusText(status: SessionStatus["status"]): string {
+		switch (status) {
+			case "running":
+				return "実行中";
+			case "waiting_for_approval":
+				return "承認待ち";
+			case "idle":
+				return "待機中";
+			default:
+				return "不明";
+		}
 	}
 </script>
 
@@ -117,13 +161,25 @@
 					class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
 				>
 					{#each sessionIds as sessionId}
+						{@const status = sessionStatuses.get(sessionId)}
 						<div
 							class="bg-white rounded-lg p-5 shadow-sm border border-gray-200"
 						>
 							<div class="flex justify-between items-start mb-4">
-								<h3 class="text-gray-800 text-lg font-medium">
-									セッション {sessionId}
-								</h3>
+								<div class="flex-1">
+									<h3 class="text-gray-800 text-lg font-medium">
+										セッション {sessionId}
+									</h3>
+									{#if status}
+										<div class="flex items-center gap-2 mt-2">
+											<div class="w-2 h-2 rounded-full {getStatusColor(status.status)}"></div>
+											<span class="text-sm text-gray-600">{getStatusText(status.status)}</span>
+										</div>
+										<div class="text-xs text-gray-500 mt-1">
+											{status.cwd}
+										</div>
+									{/if}
+								</div>
 							</div>
 							<div class="flex gap-3">
 								<button

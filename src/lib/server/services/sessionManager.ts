@@ -1,4 +1,4 @@
-import type { SessionHandler, SessionHandlerFactory, SessionManager } from "$lib/server/domain";
+import type { SessionHandler, SessionHandlerFactory, SessionManager, SessionStatus } from "$lib/server/domain";
 
 export class SessionManagerImpl implements SessionManager {
     #sessionMap: Map<string, SessionHandler>;
@@ -18,6 +18,10 @@ export class SessionManagerImpl implements SessionManager {
     }
     listSessions(): string[] {
         return Array.from(this.#sessionMap.keys());
+    }
+    getSessionStatus(sessionId: string): SessionStatus | null {
+        const session = this.#sessionMap.get(sessionId);
+        return session ? session.getStatus() : null;
     }
 }
 

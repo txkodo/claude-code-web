@@ -11,7 +11,8 @@ test('RealSessionHandlerが正しいセッションIDを返す', () => {
 
     const handler = new RealSessionHandler({
         sessionId: 'test-session-id',
-        agent: mockAgent
+        agent: mockAgent,
+        cwd: '/test/path'
     });
 
     expect(handler.sessionId()).toBe('test-session-id');
@@ -28,7 +29,8 @@ test('RealSessionHandlerがビジー時にエラーを返す', async () => {
 
     const handler = new RealSessionHandler({
         sessionId: 'test-session-id',
-        agent: mockAgent
+        agent: mockAgent,
+        cwd: '/test/path'
     });
 
     const message = 'test message';
@@ -54,7 +56,8 @@ test('RealSessionHandlerがメッセージを処理してイベントを発行�
 
     const handler = new RealSessionHandler({
         sessionId: 'test-session-id',
-        agent: mockAgent
+        agent: mockAgent,
+        cwd: '/test/path'
     });
 
     const events: any[] = [];
@@ -86,7 +89,8 @@ test('RealSessionHandlerのイベントリスナー登録解除が動作する',
 
     const handler = new RealSessionHandler({
         sessionId: 'test-session-id',
-        agent: mockAgent
+        agent: mockAgent,
+        cwd: '/test/path'
     });
 
     const events: any[] = [];
@@ -123,7 +127,8 @@ test('RealSessionHandlerの承認フローがapproval_messageを発行する', a
 
     const handler = new RealSessionHandler({
         sessionId: 'test-session-id',
-        agent: mockAgent
+        agent: mockAgent,
+        cwd: '/test/path'
     });
 
     const events: any[] = [];
@@ -166,7 +171,8 @@ test('RealSessionHandlerのcloseメソッドが動作する', async () => {
 
     const handler = new RealSessionHandler({
         sessionId: 'test-session-id',
-        agent: mockAgent
+        agent: mockAgent,
+        cwd: '/test/path'
     });
 
     const result = await handler.close();

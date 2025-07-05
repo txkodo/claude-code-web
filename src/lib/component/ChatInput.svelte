@@ -1,23 +1,37 @@
 <script lang="ts">
+	import type { SessionStatus } from "$lib/server/domain";
+
 	let {
 		isConnected,
 		isDisabled = false,
+		sessionStatus,
 		onsend,
+		oncancel,
 	}: {
 		isConnected: boolean;
 		isDisabled?: boolean;
+		sessionStatus: SessionStatus | null;
 		onsend: (event: { message: string }) => void;
+		oncancel: () => void;
 	} = $props();
 
 	let currentMessage = $state("");
 	let textareaElement: HTMLTextAreaElement;
 
+	let canSend = $derived(sessionStatus?.status === "idle" || sessionStatus === null);
+	let isRunning = $derived(sessionStatus?.status === "running");
+	let isWaitingApproval = $derived(sessionStatus?.status === "waiting_for_approval");
+
 	function sendMessage() {
-		if (!currentMessage.trim() || !isConnected || isDisabled) return;
+		if (!currentMessage.trim() || !isConnected || isDisabled || !canSend) return;
 
 		onsend({ message: currentMessage.trim() });
 		currentMessage = "";
 		adjustTextareaHeight();
+	}
+
+	function cancelMessage() {
+		oncancel();
 	}
 
 	function adjustTextareaHeight() {
@@ -30,7 +44,11 @@
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
 			event.preventDefault();
-			sendMessage();
+			if (isRunning || isWaitingApproval) {
+				cancelMessage();
+			} else {
+				sendMessage();
+			}
 		}
 	}
 </script>
@@ -45,14 +63,24 @@
 			placeholder="Claudeに質問してください... (Ctrl+Enter で送信)"
 			class="flex-1 p-3 border border-gray-300 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:border-blue-500 focus:ring-3 focus:ring-blue-100 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed resize-none overflow-hidden min-h-[44px] max-h-[200px] font-inherit"
 			rows="1"
-			disabled={isDisabled}
+			disabled={isDisabled || !canSend}
 		></textarea>
-		<button
-			class="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-			onclick={sendMessage}
-			disabled={!currentMessage.trim() || !isConnected || isDisabled}
-		>
-			{isConnected ? "送信" : "接続中..."}
-		</button>
+		{#if isRunning || isWaitingApproval}
+			<button
+				class="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+				onclick={cancelMessage}
+				disabled={!isConnected || isDisabled}
+			>
+				キャンセル
+			</button>
+		{:else}
+			<button
+				class="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+				onclick={sendMessage}
+				disabled={!currentMessage.trim() || !isConnected || isDisabled || !canSend}
+			>
+				{!isConnected ? "接続中..." : !canSend ? "送信不可" : "送信"}
+			</button>
+		{/if}
 	</div>
 </div>
