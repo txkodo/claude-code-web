@@ -3,7 +3,6 @@
 export type SessionMessage =
     | SessionMessage.UserMessage
     | SessionMessage.AssistantMessage
-    | SessionMessage.ToolResultMessage
     | SessionMessage.ApprovalMessage
     | SessionMessage.DebugMessage
     | SessionMessage.ToolUseMessage;
@@ -19,16 +18,13 @@ export namespace SessionMessage {
         msgId: string;
         content: string;
     }
-    export type ToolResultMessage = {
-        type: "tool_result_message";
-        msgId: string;
-        output: { type: "image"; uri: string; } | { type: "text"; text: string; };
-    }
     export type ToolUseMessage = {
         type: "tool_use_message";
         msgId: string;
+        toolUseId: string;
         name: string;
         input: unknown;
+        output: ({ type: "image"; uri: string; } | { type: "text"; text: string; })[] | null;
     }
     export type ApprovalMessage = {
         type: "approval_message";
@@ -110,6 +106,7 @@ export namespace ClientEvent {
 //#region Helper Types
 
 export type CodingApproval = { behavior: "allow"; updatedInput: any; } | { behavior: "deny"; message: string; }
+export type SessionMessageChange = { mode: "push", message: SessionMessage } | { mode: "update", message: SessionMessage }
 
 //#endregion
 
@@ -138,7 +135,7 @@ export interface CodingAgent {
     process(props: {
         prompt: string,
         permitAction: (data: any) => Promise<CodingApproval>
-    }): AsyncIterable<SessionMessage>;
+    }): AsyncIterable<SessionMessageChange>;
     close(): Promise<void>;
 }
 
