@@ -3,21 +3,28 @@
 		isConnected,
 		isDisabled = false,
 		onsend,
-		onclear,
 	}: {
 		isConnected: boolean;
 		isDisabled?: boolean;
 		onsend: (event: { message: string }) => void;
-		onclear: () => void;
 	} = $props();
 
 	let currentMessage = $state("");
+	let textareaElement: HTMLTextAreaElement;
 
 	function sendMessage() {
 		if (!currentMessage.trim() || !isConnected || isDisabled) return;
 
 		onsend({ message: currentMessage.trim() });
 		currentMessage = "";
+		adjustTextareaHeight();
+	}
+
+	function adjustTextareaHeight() {
+		if (textareaElement) {
+			textareaElement.style.height = 'auto';
+			textareaElement.style.height = textareaElement.scrollHeight + 'px';
+		}
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
@@ -26,28 +33,18 @@
 			sendMessage();
 		}
 	}
-
-	function clearChat() {
-		onclear();
-	}
 </script>
 
 <div class="space-y-3">
-	<div class="flex justify-end">
-		<button
-			class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors duration-200"
-			onclick={clearChat}
-		>
-			リセット
-		</button>
-	</div>
 	<div class="flex gap-2 items-end">
 		<textarea
+			bind:this={textareaElement}
 			bind:value={currentMessage}
 			onkeydown={handleKeydown}
+			oninput={adjustTextareaHeight}
 			placeholder="Claudeに質問してください... (Ctrl+Enter で送信)"
-			class="flex-1 p-3 border border-gray-300 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:border-blue-500 focus:ring-3 focus:ring-blue-100 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed resize-y min-h-[44px] max-h-[200px] font-inherit"
-			rows="3"
+			class="flex-1 p-3 border border-gray-300 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:border-blue-500 focus:ring-3 focus:ring-blue-100 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed resize-none overflow-hidden min-h-[44px] max-h-[200px] font-inherit"
+			rows="1"
 			disabled={isDisabled}
 		></textarea>
 		<button
