@@ -19,7 +19,8 @@ export class ClaudeCodingAgent implements CodingAgent {
 
   async *process(props: {
     prompt: string,
-    permitAction: (data: unknown) => Promise<CodingApproval>
+    permitAction: (data: unknown) => Promise<CodingApproval>,
+    abortSignal?: AbortSignal
   }): AsyncIterable<SessionMessageChange> {
     if (this.#abortController) {
       throw new Error('作業中です.');
@@ -30,6 +31,12 @@ export class ClaudeCodingAgent implements CodingAgent {
     try {
       this.#abortController = new AbortController();
 
+      // 外部からのAbortSignalがある場合は、それも監視
+      if (props.abortSignal) {
+        props.abortSignal.addEventListener('abort', () => {
+          this.#abortController?.abort();
+        });
+      }
 
       // ClaudeCode実行
       for await (const sdkMessage of query({

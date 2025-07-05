@@ -138,6 +138,7 @@ export interface SessionHandler {
     answerApproval(approvalId: string, data: CodingApproval): Promise<void>;
     close(): Promise<void>;
     getStatus(): SessionStatus;
+    cancel(): Promise<void>;
 }
 
 export interface SessionHandlerFactory {
@@ -147,7 +148,8 @@ export interface SessionHandlerFactory {
 export interface CodingAgent {
     process(props: {
         prompt: string,
-        permitAction: (data: any) => Promise<CodingApproval>
+        permitAction: (data: any) => Promise<CodingApproval>,
+        abortSignal?: AbortSignal
     }): AsyncIterable<SessionMessageChange>;
     close(): Promise<void>;
 }

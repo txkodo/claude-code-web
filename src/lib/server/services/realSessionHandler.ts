@@ -8,6 +8,7 @@ export class RealSessionHandler implements SessionHandler {
   #approvalMessages: Map<string, SessionMessage.ApprovalMessage> = new Map();
   #messages: SessionMessage[] = [];
   #cwd: string;
+  #abortController: AbortController | null = null;
 
   constructor(props: {
     sessionId: string,
@@ -29,6 +30,7 @@ export class RealSessionHandler implements SessionHandler {
       return new Error('作業中です.');
     }
     this.#busy = true;
+    this.#abortController = new AbortController();
     this.#emitEvent({ type: "update_session_status", sessionId: this.#sessionId, status: this.getStatus() });
 
     const process = async () => {
@@ -42,6 +44,7 @@ export class RealSessionHandler implements SessionHandler {
 
         const iter = this.#codingAgent.process({
           prompt: message,
+          abortSignal: this.#abortController?.signal,
           permitAction: (data) => {
             // ID付きのイベントを発行し、ユーザーからの応答を待つ
             const approvalId = crypto.randomUUID();
@@ -70,9 +73,14 @@ export class RealSessionHandler implements SessionHandler {
         }
       }
       catch (error) {
-        console.error("Error in session handler:", error);
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.log("Session processing was cancelled");
+        } else {
+          console.error("Error in session handler:", error);
+        }
       } finally {
         this.#busy = false;
+        this.#abortController = null;
         this.#emitEvent({ type: "update_session_status", sessionId: this.#sessionId, status: this.getStatus() });
       }
     }
@@ -122,6 +130,12 @@ export class RealSessionHandler implements SessionHandler {
       status,
       cwd: this.#cwd
     };
+  }
+
+  async cancel(): Promise<void> {
+    if (this.#abortController) {
+      this.#abortController.abort();
+    }
   }
 
   #emitEvent(event: ServerEvent): void {

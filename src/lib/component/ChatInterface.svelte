@@ -173,6 +173,19 @@
 		socket.send(JSON.stringify(message));
 	}
 
+	async function cancelMessage() {
+		try {
+			const response = await fetch(`/api/session/${sessionId}/cancel`, {
+				method: "POST",
+			});
+			if (!response.ok) {
+				console.error("Failed to cancel session:", response.statusText);
+			}
+		} catch (error) {
+			console.error("Failed to cancel session:", error);
+		}
+	}
+
 	function clearChat() {
 		messages = [];
 	}
@@ -263,6 +276,6 @@
 			(msg) => msg.type === "approval_message" && !msg.response,
 		)}
 		onsend={sendMessage}
-		onclear={clearChat}
+		oncancel={cancelMessage}
 	/>
 </div>
