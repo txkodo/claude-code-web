@@ -10,7 +10,7 @@ import { ClaudeCodingAgentFactory } from './services/claudeCodingAgent';
 import type { ServerWebSocket } from 'bun';
 import { PermissionMcpServer } from './services/permissionMcp';
 
-const permissionMcpServer = new PermissionMcpServer(id => `http://localhost:3001/api/mcp/permission/${id}`);
+const permissionMcpServer = new PermissionMcpServer(id => `http://localhost:3002/api/mcp/permission/${id}`);
 
 const sessionManager: SessionManager = new SessionManagerImpl(new RealSessionHandlerFactory(new ClaudeCodingAgentFactory(permissionMcpServer)));
 
@@ -20,13 +20,16 @@ const { upgradeWebSocket, websocket } = createBunWebSocket();
 
 let sockets = new Set<ServerWebSocket>();
 
-// API定義
+// 内部API定義 (MCP専用)
+export const internalApiRouter = new Hono()
+    .all('/mcp/permission/:id', c => permissionMcpServer.handleRequest(c.req.param("id"), c.req.raw));
+
+// 外部API定義 (メインアプリ用)
 export const apiRouter = new Hono()
     .use(async (x, next) => {
         console.log(`Request: ${x.req.method} ${x.req.path}`);
         await next();
     })
-    .all('/mcp/permission/:id', c => permissionMcpServer.handleRequest(c.req.param("id"), c.req.raw))
     .get('/ws', upgradeWebSocket((c) => {
         return {
             onOpen(evt, ws) {
