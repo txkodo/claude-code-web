@@ -1,4 +1,4 @@
-import type { SessionMessage, CodingAgent, CodingAgentFactory, CodingApproval } from "$lib/server/domain";
+import type { SessionMessage, CodingAgent, CodingAgentFactory, CodingApproval, SessionMessageChange } from "$lib/server/domain";
 
 export class FakeCodingAgent implements CodingAgent {
   #cwd: string;
@@ -14,16 +14,19 @@ export class FakeCodingAgent implements CodingAgent {
   async *process(props: {
     prompt: string,
     permitAction: (data: any) => Promise<CodingApproval>
-  }): AsyncIterable<SessionMessage> {
+  }): AsyncIterable<SessionMessageChange> {
     // プロンプトに対するデフォルトレスポンス
     if (this.#messages.length === 0) {
       yield {
-        type: "assistant_message",
-        msgId: crypto.randomUUID(),
-        content: JSON.stringify({
-          type: "text",
-          content: `受信したプロンプト: "${props.prompt}" (作業ディレクトリ: ${this.#cwd})`
-        })
+        mode: "push",
+        message: {
+          type: "assistant_message",
+          msgId: crypto.randomUUID(),
+          content: JSON.stringify({
+            type: "text",
+            content: `受信したプロンプト: "${props.prompt}" (作業ディレクトリ: ${this.#cwd})`
+          })
+        }
       };
       return;
     }
@@ -33,7 +36,10 @@ export class FakeCodingAgent implements CodingAgent {
       if (this.#delay > 0) {
         await new Promise(resolve => setTimeout(resolve, this.#delay));
       }
-      yield message;
+      yield {
+        mode: "push",
+        message: message
+      };
     }
   }
 

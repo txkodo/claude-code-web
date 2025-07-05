@@ -81,10 +81,13 @@ test('ClaudeCodingAgentがメッセージを正しく処理する', async () => 
   }
 
   expect(results).toHaveLength(2);
-  expect(results[0]).toHaveProperty('msgId');
-  expect(results[0].type).toBe('assistant_message');
-  expect((results[0] as any).content).toBe(JSON.stringify(mockMessages[0]));
-  expect((results[1] as any).content).toBe(mockMessages[1].result);
+  expect(results[0]).toHaveProperty('mode');
+  expect(results[0]).toHaveProperty('message');
+  expect(results[0].mode).toBe('push');
+  expect(results[0].message).toHaveProperty('msgId');
+  expect(results[0].message.type).toBe('debug_message');
+  expect((results[0].message as any).content).toBe(JSON.stringify(mockMessages[0]));
+  expect((results[1].message as any).content).toBe(mockMessages[1].result);
 
   await agent.close();
 });
@@ -197,8 +200,8 @@ test('ClaudeCodingAgentの基本機能が動作する', async () => {
   }
 
   expect(messages).toHaveLength(2);
-  expect((messages[0] as any).content).toContain('Starting');
-  expect((messages[1] as any).content).toContain('Finished');
+  expect((messages[0] as any).message.content).toContain('Starting');
+  expect((messages[1] as any).message.content).toContain('Finished');
 
   await agent.close();
 });

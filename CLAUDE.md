@@ -173,3 +173,18 @@ The architecture supports easy extension through:
 - **WebSocket Events**: Can add new event types for extended functionality
 
 This architecture provides a solid foundation for a local Claude Code interface with proper separation of concerns, type safety, and real-time user interaction.
+
+# Important Instructions for Claude Code
+
+## Server Management
+- DO NOT automatically start the development server unless explicitly requested
+- When the user wants to stop the server, use `kill` command on the appropriate PID
+- Always check if servers are running before starting new ones
+- Port 3001 is used for the Hono API server
+- Port 5173 is used for the SvelteKit frontend server
+
+## General Guidelines
+- Do what has been asked; nothing more, nothing less
+- NEVER create files unless they're absolutely necessary for achieving your goal
+- ALWAYS prefer editing an existing file to creating a new one
+- NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User

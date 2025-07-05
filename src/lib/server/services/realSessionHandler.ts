@@ -1,4 +1,4 @@
-import type { CodingAgent, CodingAgentFactory, CodingApproval, ServerEvent, SessionHandler, SessionHandlerFactory, SessionMessage } from "$lib/server/domain";
+import type { CodingAgent, CodingAgentFactory, CodingApproval, ServerEvent, SessionHandler, SessionHandlerFactory, SessionMessage, SessionMessageChange } from "$lib/server/domain";
 
 export class RealSessionHandler implements SessionHandler {
   #codingAgent: CodingAgent;
@@ -60,8 +60,8 @@ export class RealSessionHandler implements SessionHandler {
             });
           }
         })
-        for await (const message of iter) {
-          this.#emitEvent({ type: "push_message", sessionId: this.#sessionId, message })
+        for await (const messageChange of iter) {
+          this.#emitEvent({ type: messageChange.mode === "push" ? "push_message" : "update_message", sessionId: this.#sessionId, message: messageChange.message })
         }
       }
       catch (error) {

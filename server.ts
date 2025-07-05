@@ -1,9 +1,11 @@
 import { serve } from "bun";
 import { Hono } from "hono";
 import { createBunWebSocket } from 'hono/bun';
-import { apiRouter } from "./src/lib/server/api";
+import { apiRouter, internalApiRouter } from "./src/lib/server/api";
+import { readFileSync } from 'fs';
 
 const port = 3001;
+const mcpPort = 3002;
 const svelteKitUrl = "http://localhost:5173";
 
 const { websocket } = createBunWebSocket();
@@ -35,7 +37,27 @@ const honoApp = new Hono()
     });
   });
 
-serve({ port, fetch: honoApp.fetch, websocket });
+// MCP専用HTTPサーバー (MCPエンドポイントのみ)
+const mcpApp = new Hono().route('/api', internalApiRouter);
 
-console.log(`Hono server with WebSocket running on port ${port}`);
-console.log(`Proxying to SvelteKit at ${svelteKitUrl}`);
+serve({
+  port: mcpPort,
+  hostname: "127.0.0.1",
+  fetch: mcpApp.fetch,
+});
+
+// メインHTTPSサーバー
+serve({ 
+  port, 
+  hostname: "0.0.0.0",
+  fetch: honoApp.fetch, 
+  websocket,
+  tls: {
+    cert: readFileSync("certs/cert.pem"),
+    key: readFileSync("certs/key.pem"),
+  }
+});
+
+console.log(`MCP HTTP server running on http://127.0.0.1:${mcpPort}`);
+console.log(`Main HTTPS server running on https://0.0.0.0:${port}`);
+console.log(`Access via: https://192.168.1.52:${port}`);

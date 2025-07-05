@@ -1,23 +1,30 @@
 <script lang="ts">
-	let { 
-		isConnected, 
+	let {
+		isConnected,
 		isDisabled = false,
 		onsend,
-		onclear
-	}: { 
+	}: {
 		isConnected: boolean;
 		isDisabled?: boolean;
 		onsend: (event: { message: string }) => void;
-		onclear: () => void;
 	} = $props();
 
 	let currentMessage = $state("");
+	let textareaElement: HTMLTextAreaElement;
 
 	function sendMessage() {
 		if (!currentMessage.trim() || !isConnected || isDisabled) return;
 
 		onsend({ message: currentMessage.trim() });
 		currentMessage = "";
+		adjustTextareaHeight();
+	}
+
+	function adjustTextareaHeight() {
+		if (textareaElement) {
+			textareaElement.style.height = 'auto';
+			textareaElement.style.height = textareaElement.scrollHeight + 'px';
+		}
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
@@ -26,34 +33,22 @@
 			sendMessage();
 		}
 	}
-
-	function clearChat() {
-		onclear();
-	}
 </script>
 
-<div class="input-container">
-	<div class="input-header">
-		<button
-			class="btn btn-secondary"
-			onclick={clearChat}
-		>
-			チャットをクリア
-		</button>
-	</div>
-	
-	<div class="input-area">
+<div class="space-y-3">
+	<div class="flex gap-2 items-end">
 		<textarea
+			bind:this={textareaElement}
 			bind:value={currentMessage}
 			onkeydown={handleKeydown}
+			oninput={adjustTextareaHeight}
 			placeholder="Claudeに質問してください... (Ctrl+Enter で送信)"
-			class="input message-input"
-			rows="3"
+			class="flex-1 p-3 border border-gray-300 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:border-blue-500 focus:ring-3 focus:ring-blue-100 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed resize-none overflow-hidden min-h-[44px] max-h-[200px] font-inherit"
+			rows="1"
 			disabled={isDisabled}
 		></textarea>
-
 		<button
-			class="btn btn-primary"
+			class="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
 			onclick={sendMessage}
 			disabled={!currentMessage.trim() || !isConnected || isDisabled}
 		>
@@ -61,85 +56,3 @@
 		</button>
 	</div>
 </div>
-
-<style>
-	.input-container {
-		border-top: 1px solid #e5e7eb;
-		padding-top: 16px;
-		margin-top: 16px;
-	}
-
-	.input-header {
-		display: flex;
-		justify-content: flex-end;
-		margin-bottom: 12px;
-	}
-
-	.input-area {
-		display: flex;
-		gap: 8px;
-		align-items: flex-end;
-	}
-
-	.input {
-		flex: 1;
-		padding: 12px;
-		border: 1px solid #d1d5db;
-		border-radius: 8px;
-		font-size: 14px;
-		transition: border-color 0.2s;
-	}
-
-	.input:focus {
-		outline: none;
-		border-color: #3b82f6;
-		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-	}
-
-	.input:disabled {
-		background: #f9fafb;
-		color: #6b7280;
-		cursor: not-allowed;
-	}
-
-	.message-input {
-		resize: vertical;
-		min-height: 44px;
-		max-height: 200px;
-		font-family: inherit;
-	}
-
-	.btn {
-		padding: 12px 24px;
-		border: none;
-		border-radius: 8px;
-		font-size: 14px;
-		font-weight: 500;
-		cursor: pointer;
-		transition: all 0.2s;
-		white-space: nowrap;
-	}
-
-	.btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.btn-primary {
-		background: #3b82f6;
-		color: white;
-	}
-
-	.btn-primary:hover:not(:disabled) {
-		background: #2563eb;
-	}
-
-	.btn-secondary {
-		background: #6b7280;
-		color: white;
-	}
-
-	.btn-secondary:hover:not(:disabled) {
-		background: #4b5563;
-	}
-</style>
