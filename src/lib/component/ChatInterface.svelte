@@ -5,7 +5,7 @@
 		SessionMessage,
 		SessionStatus,
 	} from "$lib/server/domain";
-	import { onMount, untrack } from "svelte";
+	import { onDestroy, onMount, untrack } from "svelte";
 	import Message from "./Message.svelte";
 	import ChatInput from "./ChatInput.svelte";
 
@@ -24,11 +24,13 @@
 		await loadMessages();
 		await loadSessionStatus();
 		connectSocket();
-		return () => {
-			if (socket) {
-				socket.close();
-			}
-		};
+	});
+
+	onDestroy(() => {
+		if (socket) {
+			socket.close();
+			socket = null;
+		}
 	});
 
 	async function requestNotificationPermission() {
@@ -267,7 +269,12 @@
 
 <div class="grow overflow-y-auto" bind:this={messagesContainer}>
 	{#each messages as message}
-		<Message {message} {cwd} onapprove={handleApproval} ondeny={handleDenial} />
+		<Message
+			{message}
+			{cwd}
+			onapprove={handleApproval}
+			ondeny={handleDenial}
+		/>
 	{/each}
 </div>
 
