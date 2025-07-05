@@ -43,7 +43,8 @@ export namespace SessionMessage {
 export type ServerEvent =
     | SessionEvent.PushMessage
     | SessionEvent.UpdateMessage
-    | SessionEvent.DeleteMessage;
+    | SessionEvent.DeleteMessage
+    | SessionEvent.UpdateSessionStatus;
 
 export namespace SessionEvent {
     export type PushMessage = {
@@ -60,6 +61,11 @@ export namespace SessionEvent {
         type: "delete_message",
         sessionId: string;
         messageId: string
+    }
+    export type UpdateSessionStatus = {
+        type: "update_session_status",
+        sessionId: string;
+        status: SessionStatus
     }
 }
 
@@ -101,6 +107,11 @@ export namespace ClientEvent {
     }
 }
 
+export type SessionStatus = {
+    status: "running" | "waiting_for_approval" | "idle";
+    cwd: string;
+}
+
 //#endregion
 
 //#region Helper Types
@@ -116,6 +127,7 @@ export interface SessionManager {
     getSessionById(sessionId: string): SessionHandler | null;
     listSessions(): string[];
     createSession(cwd: string): string;
+    getSessionStatus(sessionId: string): SessionStatus | null;
 }
 
 export interface SessionHandler {
@@ -125,6 +137,7 @@ export interface SessionHandler {
     getAllMessages(): SessionMessage[];
     answerApproval(approvalId: string, data: CodingApproval): Promise<void>;
     close(): Promise<void>;
+    getStatus(): SessionStatus;
 }
 
 export interface SessionHandlerFactory {

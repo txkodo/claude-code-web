@@ -123,6 +123,14 @@ export const apiRouter = new Hono()
         }
         const messages = session.getAllMessages();
         return c.json({ messages });
+    })
+    .get('/session/:sessionId/status', async (c) => {
+        const sessionId = c.req.param('sessionId');
+        const status = sessionManager.getSessionStatus(sessionId);
+        if (!status) {
+            return c.json({ error: 'Session not found' }, 404);
+        }
+        return c.json({ status });
     });
 
 export type ApiRouter = typeof apiRouter;
