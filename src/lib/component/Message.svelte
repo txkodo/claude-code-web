@@ -4,6 +4,7 @@
 	import AssistantMessage from "./AssistantMessage.svelte";
 	import ToolResultMessage from "./ToolResultMessage.svelte";
 	import ApprovalMessage from "./ApprovalMessage.svelte";
+	import DebugMessage from "./DebugMessage.svelte";
 
 	let { 
 		message,
@@ -24,4 +25,6 @@
 	<ToolResultMessage {message} />
 {:else if message.type === "approval_message"}
 	<ApprovalMessage {message} {onapprove} {ondeny} />
+{:else if message.type === "debug_message"}
+	<DebugMessage {message} />
 {/if}

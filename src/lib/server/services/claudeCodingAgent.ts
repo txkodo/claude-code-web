@@ -85,7 +85,7 @@ export class ClaudeCodingAgent implements CodingAgent {
       return;
     }
     yield {
-      type: "assistant_message",
+      type: "debug_message",
       msgId: crypto.randomUUID(),
       content: JSON.stringify(sdkMessage)
     };
@@ -105,7 +105,7 @@ export class ClaudeCodingAgent implements CodingAgent {
       };
     } else {
       yield {
-        type: "assistant_message",
+        type: "debug_message",
         msgId: crypto.randomUUID(),
         content: JSON.stringify(sdkMessage)
       };
@@ -123,28 +123,28 @@ export class ClaudeCodingAgent implements CodingAgent {
         break;
       case "tool_use":
         yield {
-          type: "assistant_message",
+          type: "debug_message",
           msgId: crypto.randomUUID(),
           content: `Tool: ${item.name}\nInput: ${JSON.stringify(item.input, null, 2)}`
         };
         break;
       case "thinking":
         yield {
-          type: "assistant_message",
+          type: "debug_message",
           msgId: crypto.randomUUID(),
           content: `Thinking: ${item.thinking}`
         };
         break;
       case "server_tool_use":
         yield {
-          type: "assistant_message",
+          type: "debug_message",
           msgId: crypto.randomUUID(),
           content: `Server Tool: ${item.name}\nInput: ${JSON.stringify(item.input, null, 2)}`
         };
         break;
       default:
         yield {
-          type: "assistant_message",
+          type: "debug_message",
           msgId: crypto.randomUUID(),
           content: JSON.stringify(item)
         };
@@ -161,7 +161,7 @@ export class ClaudeCodingAgent implements CodingAgent {
       }
     } else {
       yield {
-        type: "assistant_message",
+        type: "debug_message",
         msgId: crypto.randomUUID(),
         content: JSON.stringify(sdkMessage)
       };
@@ -175,7 +175,7 @@ export class ClaudeCodingAgent implements CodingAgent {
         break;
       default:
         yield {
-          type: "assistant_message",
+          type: "debug_message",
           msgId: crypto.randomUUID(),
           content: JSON.stringify(item)
         };
@@ -239,14 +239,14 @@ export class ClaudeCodingAgent implements CodingAgent {
         break;
       case "error_during_execution":
         yield {
-          type: "assistant_message",
+          type: "debug_message",
           msgId: crypto.randomUUID(),
           content: 'エラーが発生しました',
         };
         break;
       case "error_max_turns":
         yield {
-          type: "assistant_message",
+          type: "debug_message",
           msgId: crypto.randomUUID(),
           content: '最大ターン数に達しました',
         };

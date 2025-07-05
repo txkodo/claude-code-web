@@ -4,7 +4,8 @@ export type SessionMessage =
     | SessionMessage.UserMessage
     | SessionMessage.AssistantMessage
     | SessionMessage.ToolResultMessage
-    | SessionMessage.ApprovalMessage;
+    | SessionMessage.ApprovalMessage
+    | SessionMessage.DebugMessage;
 
 export namespace SessionMessage {
     export type UserMessage = {
@@ -28,6 +29,11 @@ export namespace SessionMessage {
         approvalId: string;
         request: any;
         response: CodingApproval | null;
+    }
+    export type DebugMessage = {
+        type: "debug_message";
+        msgId: string;
+        content: string;
     }
 }
 
