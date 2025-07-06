@@ -9,7 +9,7 @@ import { RealSessionHandlerFactory } from './services/realSessionHandler';
 import { ClaudeCodingAgentFactory } from './services/claudeCodingAgent';
 import type { ServerWebSocket } from 'bun';
 import { PermissionMcpServer } from './services/permissionMcp';
-import { highlightCode } from './util/highlighter';
+import { parseToolUseContent } from './util/toolContentParser';
 
 const permissionMcpServer = new PermissionMcpServer(id => `http://localhost:3002/api/mcp/permission/${id}`);
 
@@ -124,17 +124,14 @@ export const apiRouter = new Hono()
         }
         const messages = session.getAllMessages();
         
-        // メッセージにハイライト処理を適用
+        // メッセージにToolUseContentを適用
         const processedMessages = await Promise.all(messages.map(async (msg) => {
-            if (msg.type === 'tool_use_message' && msg.name === 'Write' && msg.output) {
-                const input = msg.input as any;
-                if (input && input.file_path && input.content) {
-                    const highlightedContent = await highlightCode(input.content, input.file_path);
-                    return {
-                        ...msg,
-                        highlightedContent
-                    };
-                }
+            if (msg.type === 'tool_use_message') {
+                const content = await parseToolUseContent(msg.name, msg.input);
+                return {
+                    ...msg,
+                    content
+                };
             }
             return msg;
         }));

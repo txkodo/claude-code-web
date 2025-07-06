@@ -25,7 +25,7 @@ export namespace SessionMessage {
         name: string;
         input: unknown;
         output: ({ type: "image"; uri: string; } | { type: "text"; text: string; })[] | null;
-        highlightedContent?: string;
+        content?: ToolUseContent;
     }
     export type ApprovalMessage = {
         type: "approval_message";
@@ -112,6 +112,17 @@ export type SessionStatus = {
     status: "running" | "waiting_for_approval" | "idle";
     cwd: string;
 }
+
+//#endregion
+
+//#region ToolUse Content Types
+
+export type ToolUseContent = 
+    | { tool: "Write"; path: string; language: string; content: string; highlightedContent?: string; }
+    | { tool: "Edit"; path: string; language: string; oldContent: string; newContent: string; highlightedOldContent?: string; highlightedNewContent?: string; }
+    | { tool: "Read"; path: string; }
+    | { tool: "Bash"; command: string; }
+    | { tool: "unknown"; data: unknown; };
 
 //#endregion
 

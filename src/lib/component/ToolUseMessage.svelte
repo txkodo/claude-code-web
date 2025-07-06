@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { SessionMessage } from "$lib/server/domain";
+	import { getRelativePath } from "$lib/server/util/toolContentParser";
 
 	let { message, cwd }: { message: SessionMessage.ToolUseMessage; cwd?: string } = $props();
 	
@@ -9,6 +10,7 @@
 		isExpanded = !isExpanded;
 	}
 	
+	// Fallback functions for legacy support
 	function getCommand(input: any): string {
 		if (typeof input === 'object' && input !== null && 'command' in input) {
 			return input.command;
@@ -18,24 +20,7 @@
 	
 	function getFilePath(input: any): string {
 		if (typeof input === 'object' && input !== null && 'file_path' in input) {
-			const fullPath = input.file_path;
-			if (typeof fullPath === 'string' && cwd) {
-				// CWDからの相対パスを計算
-				if (fullPath.startsWith(cwd)) {
-					const relativePath = fullPath.substring(cwd.length);
-					const cleanPath = relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
-					return cleanPath ? './' + cleanPath : './';
-				}
-				// CWDに含まれない場合は絶対パスを表示
-				return fullPath;
-			} else if (typeof fullPath === 'string') {
-				// CWDが提供されない場合は従来の表示
-				const parts = fullPath.split('/');
-				if (parts.length > 3) {
-					return '.../' + parts.slice(-3).join('/');
-				}
-				return fullPath;
-			}
+			return getRelativePath(input.file_path, cwd);
 		}
 		return '';
 	}
@@ -89,12 +74,22 @@
 				</div>
 			</div>
 			<div class="text-xs text-purple-600 font-mono break-words">
-				{#if message.name === 'Bash'}
-					{getCommand(message.input)}
-				{:else if message.name === 'Edit' || message.name === 'Read'}
-					{getFilePath(message.input)}
-				{:else if message.name === 'Write'}
-					{getFilePath(message.input)}
+				{#if message.content}
+					{#if message.content.tool === 'Bash'}
+						{message.content.command}
+					{:else if message.content.tool === 'Write' || message.content.tool === 'Edit' || message.content.tool === 'Read'}
+						{getRelativePath(message.content.path, cwd)}
+					{:else}
+						{message.name}
+					{/if}
+				{:else}
+					{#if message.name === 'Bash'}
+						{getCommand(message.input)}
+					{:else if message.name === 'Edit' || message.name === 'Read'}
+						{getFilePath(message.input)}
+					{:else if message.name === 'Write'}
+						{getFilePath(message.input)}
+					{/if}
 				{/if}
 			</div>
 		{:else}
@@ -119,42 +114,65 @@
 	
 	{#if isExpanded}
 		<div class="mt-3 pt-3 border-t border-purple-200">
-			{#if message.name === 'Write'}
-				<!-- Writeツールの場合は特別な表示 -->
-				<div class="text-xs font-medium text-purple-800 mb-2">コンテンツ:</div>
-				{#if message.highlightedContent}
-					<div class="bg-sky-50 border border-sky-200 rounded p-2 text-xs overflow-x-auto [&_pre]:!bg-transparent [&_pre]:!p-0 [&_pre]:!m-0 [&_pre]:!border-0 [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words">
-						{@html message.highlightedContent}
-					</div>
+			{#if message.content}
+				<!-- 新しいToolUseContent形式での表示 -->
+				{#if message.content.tool === 'Write'}
+					<div class="text-xs font-medium text-purple-800 mb-2">コンテンツ:</div>
+					{#if message.content.highlightedContent}
+						<div class="bg-sky-50 border border-sky-200 rounded p-2 text-xs overflow-x-auto [&_pre]:!bg-transparent [&_pre]:!p-0 [&_pre]:!m-0 [&_pre]:!border-0 [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words">
+							{@html message.content.highlightedContent}
+						</div>
+					{:else}
+						<pre class="bg-sky-50 border border-sky-200 rounded p-2 text-xs overflow-x-auto text-gray-800 whitespace-pre-wrap break-words font-mono">{message.content.content}</pre>
+					{/if}
+				{:else if message.content.tool === 'Edit'}
+					<div class="text-xs font-medium text-purple-800 mb-2">変更前:</div>
+					{#if message.content.highlightedOldContent}
+						<div class="bg-red-50 border border-red-200 rounded p-2 text-xs overflow-x-auto mb-3 [&_pre]:!bg-transparent [&_pre]:!p-0 [&_pre]:!m-0 [&_pre]:!border-0 [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words">
+							{@html message.content.highlightedOldContent}
+						</div>
+					{:else}
+						<pre class="bg-red-50 border border-red-200 rounded p-2 text-xs overflow-x-auto text-gray-800 whitespace-pre-wrap break-words font-mono mb-3">{message.content.oldContent}</pre>
+					{/if}
+					<div class="text-xs font-medium text-purple-800 mb-2">変更後:</div>
+					{#if message.content.highlightedNewContent}
+						<div class="bg-green-50 border border-green-200 rounded p-2 text-xs overflow-x-auto [&_pre]:!bg-transparent [&_pre]:!p-0 [&_pre]:!m-0 [&_pre]:!border-0 [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words">
+							{@html message.content.highlightedNewContent}
+						</div>
+					{:else}
+						<pre class="bg-green-50 border border-green-200 rounded p-2 text-xs overflow-x-auto text-gray-800 whitespace-pre-wrap break-words font-mono">{message.content.newContent}</pre>
+					{/if}
+				{:else if message.content.tool === 'Read'}
+					<div class="text-xs font-medium text-purple-800 mb-2">読み取り対象:</div>
+					<div class="text-xs text-gray-600 font-mono">{getRelativePath(message.content.path, cwd)}</div>
+				{:else if message.content.tool === 'Bash'}
+					<div class="text-xs font-medium text-purple-800 mb-2">コマンド:</div>
+					<pre class="bg-gray-100 border border-gray-200 rounded p-2 text-xs overflow-x-auto text-gray-800 whitespace-pre-wrap break-words font-mono">{message.content.command}</pre>
 				{:else}
-					<pre
-						class="bg-sky-50 border border-sky-200 rounded p-2 text-xs overflow-x-auto text-gray-800 whitespace-pre-wrap break-words font-mono">{getWriteContent(message.input)}</pre>
+					<div class="text-xs font-medium text-purple-800 mb-2">入力:</div>
+					<pre class="bg-purple-100 border border-purple-200 rounded p-2 text-xs overflow-x-auto text-purple-700 mb-3">{JSON.stringify(message.content.data, null, 2)}</pre>
 				{/if}
-			{:else if message.name === 'Edit'}
-				<!-- Editツールの場合は特別な表示 -->
-				<div class="text-xs font-medium text-purple-800 mb-2">変更前:</div>
-				<pre
-					class="bg-red-50 border border-red-200 rounded p-2 text-xs overflow-x-auto text-gray-800 whitespace-pre-wrap break-words font-mono mb-3">{getEditOldString(message.input)}</pre>
-				<div class="text-xs font-medium text-purple-800 mb-2">変更後:</div>
-				<pre
-					class="bg-green-50 border border-green-200 rounded p-2 text-xs overflow-x-auto text-gray-800 whitespace-pre-wrap break-words font-mono">{getEditNewString(message.input)}</pre>
 			{:else}
-				<!-- その他のツールの場合は従来の表示 -->
-				<div class="text-xs font-medium text-purple-800 mb-2">入力:</div>
-				<pre
-					class="bg-purple-100 border border-purple-200 rounded p-2 text-xs overflow-x-auto text-purple-700 mb-3">{JSON.stringify(
-						message.input,
-						null,
-						2,
-					)}</pre>
+				<!-- 従来形式での表示（fallback） -->
+				{#if message.name === 'Write'}
+					<div class="text-xs font-medium text-purple-800 mb-2">コンテンツ:</div>
+					<pre class="bg-sky-50 border border-sky-200 rounded p-2 text-xs overflow-x-auto text-gray-800 whitespace-pre-wrap break-words font-mono">{getWriteContent(message.input)}</pre>
+				{:else if message.name === 'Edit'}
+					<div class="text-xs font-medium text-purple-800 mb-2">変更前:</div>
+					<pre class="bg-red-50 border border-red-200 rounded p-2 text-xs overflow-x-auto text-gray-800 whitespace-pre-wrap break-words font-mono mb-3">{getEditOldString(message.input)}</pre>
+					<div class="text-xs font-medium text-purple-800 mb-2">変更後:</div>
+					<pre class="bg-green-50 border border-green-200 rounded p-2 text-xs overflow-x-auto text-gray-800 whitespace-pre-wrap break-words font-mono">{getEditNewString(message.input)}</pre>
+				{:else}
+					<div class="text-xs font-medium text-purple-800 mb-2">入力:</div>
+					<pre class="bg-purple-100 border border-purple-200 rounded p-2 text-xs overflow-x-auto text-purple-700 mb-3">{JSON.stringify(message.input, null, 2)}</pre>
+				{/if}
 			{/if}
 			
 			{#if message.output !== null}
 				<div class="text-xs font-medium text-purple-800 mb-2">実行結果:</div>
 				{#each message.output as output}
 					{#if output.type === "text"}
-						<pre
-							class="bg-sky-50 border border-sky-200 rounded p-2 text-xs overflow-x-auto text-gray-800 whitespace-pre-wrap break-words font-mono">{output.text}</pre>
+						<pre class="bg-sky-50 border border-sky-200 rounded p-2 text-xs overflow-x-auto text-gray-800 whitespace-pre-wrap break-words font-mono">{output.text}</pre>
 					{:else if output.type === "image"}
 						<img
 							src={output.uri}
