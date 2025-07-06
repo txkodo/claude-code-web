@@ -39,6 +39,27 @@
 		}
 		return '';
 	}
+
+	function getWriteContent(input: any): string {
+		if (typeof input === 'object' && input !== null && 'content' in input) {
+			return input.content;
+		}
+		return '';
+	}
+
+	function getEditOldString(input: any): string {
+		if (typeof input === 'object' && input !== null && 'old_string' in input) {
+			return input.old_string;
+		}
+		return '';
+	}
+
+	function getEditNewString(input: any): string {
+		if (typeof input === 'object' && input !== null && 'new_string' in input) {
+			return input.new_string;
+		}
+		return '';
+	}
 </script>
 
 <div
@@ -50,8 +71,8 @@
 		aria-expanded={isExpanded}
 		aria-label="ツール実行詳細を{isExpanded ? '閉じる' : '開く'}"
 	>
-		{#if message.name === 'Bash' || message.name === 'Edit' || message.name === 'Read'}
-			<!-- Bash/Edit/Readの場合は二行構成 -->
+		{#if message.name === 'Bash' || message.name === 'Edit' || message.name === 'Read' || message.name === 'Write'}
+			<!-- Bash/Edit/Read/Writeの場合は二行構成 -->
 			<div class="flex items-center justify-between mb-1">
 				<div class="text-sm font-medium text-purple-800 flex items-center gap-2">
 					🔧 {message.name}
@@ -71,6 +92,8 @@
 				{#if message.name === 'Bash'}
 					{getCommand(message.input)}
 				{:else if message.name === 'Edit' || message.name === 'Read'}
+					{getFilePath(message.input)}
+				{:else if message.name === 'Write'}
 					{getFilePath(message.input)}
 				{/if}
 			</div>
@@ -96,13 +119,29 @@
 	
 	{#if isExpanded}
 		<div class="mt-3 pt-3 border-t border-purple-200">
-			<div class="text-xs font-medium text-purple-800 mb-2">入力:</div>
-			<pre
-				class="bg-purple-100 border border-purple-200 rounded p-2 text-xs overflow-x-auto text-purple-700 mb-3">{JSON.stringify(
-					message.input,
-					null,
-					2,
-				)}</pre>
+			{#if message.name === 'Write'}
+				<!-- Writeツールの場合は特別な表示 -->
+				<div class="text-xs font-medium text-purple-800 mb-2">コンテンツ:</div>
+				<pre
+					class="bg-sky-50 border border-sky-200 rounded p-2 text-xs overflow-x-auto text-gray-800 whitespace-pre-wrap break-words font-mono">{getWriteContent(message.input)}</pre>
+			{:else if message.name === 'Edit'}
+				<!-- Editツールの場合は特別な表示 -->
+				<div class="text-xs font-medium text-purple-800 mb-2">変更前:</div>
+				<pre
+					class="bg-red-50 border border-red-200 rounded p-2 text-xs overflow-x-auto text-gray-800 whitespace-pre-wrap break-words font-mono mb-3">{getEditOldString(message.input)}</pre>
+				<div class="text-xs font-medium text-purple-800 mb-2">変更後:</div>
+				<pre
+					class="bg-green-50 border border-green-200 rounded p-2 text-xs overflow-x-auto text-gray-800 whitespace-pre-wrap break-words font-mono">{getEditNewString(message.input)}</pre>
+			{:else}
+				<!-- その他のツールの場合は従来の表示 -->
+				<div class="text-xs font-medium text-purple-800 mb-2">入力:</div>
+				<pre
+					class="bg-purple-100 border border-purple-200 rounded p-2 text-xs overflow-x-auto text-purple-700 mb-3">{JSON.stringify(
+						message.input,
+						null,
+						2,
+					)}</pre>
+			{/if}
 			
 			{#if message.output !== null}
 				<div class="text-xs font-medium text-purple-800 mb-2">実行結果:</div>
