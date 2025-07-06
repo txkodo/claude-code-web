@@ -9,11 +9,13 @@
 	let { 
 		message,
 		onapprove,
-		ondeny
+		ondeny,
+		cwd
 	}: { 
 		message: SessionMessage;
 		onapprove?: (event: { approvalId: string; data: any }) => void;
 		ondeny?: (event: { approvalId: string; message?: string }) => void;
+		cwd?: string;
 	} = $props();
 </script>
 
@@ -22,7 +24,7 @@
 {:else if message.type === "assistant_message"}
 	<AssistantMessage {message} />
 {:else if message.type === "tool_use_message"}
-	<ToolUseMessage {message} />
+	<ToolUseMessage {message} {cwd} />
 {:else if message.type === "approval_message"}
 	<ApprovalMessage {message} {onapprove} {ondeny} />
 {:else if message.type === "debug_message"}
