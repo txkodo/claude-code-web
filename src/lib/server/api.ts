@@ -9,6 +9,7 @@ import { RealSessionHandlerFactory } from './services/realSessionHandler';
 import { ClaudeCodingAgentFactory } from './services/claudeCodingAgent';
 import type { ServerWebSocket } from 'bun';
 import { PermissionMcpServer } from './services/permissionMcp';
+import { highlightCode } from './util/highlighter';
 
 const permissionMcpServer = new PermissionMcpServer(id => `http://localhost:3002/api/mcp/permission/${id}`);
 
@@ -122,7 +123,23 @@ export const apiRouter = new Hono()
             return c.json({ error: 'Session not found' }, 404);
         }
         const messages = session.getAllMessages();
-        return c.json({ messages });
+        
+        // メッセージにハイライト処理を適用
+        const processedMessages = await Promise.all(messages.map(async (msg) => {
+            if (msg.type === 'tool_use_message' && msg.name === 'Write' && msg.output) {
+                const input = msg.input as any;
+                if (input && input.file_path && input.content) {
+                    const highlightedContent = await highlightCode(input.content, input.file_path);
+                    return {
+                        ...msg,
+                        highlightedContent
+                    };
+                }
+            }
+            return msg;
+        }));
+        
+        return c.json({ messages: processedMessages });
     })
     .get('/session/:sessionId/status', async (c) => {
         const sessionId = c.req.param('sessionId');

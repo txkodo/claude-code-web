@@ -122,8 +122,14 @@
 			{#if message.name === 'Write'}
 				<!-- Writeツールの場合は特別な表示 -->
 				<div class="text-xs font-medium text-purple-800 mb-2">コンテンツ:</div>
-				<pre
-					class="bg-sky-50 border border-sky-200 rounded p-2 text-xs overflow-x-auto text-gray-800 whitespace-pre-wrap break-words font-mono">{getWriteContent(message.input)}</pre>
+				{#if message.highlightedContent}
+					<div class="bg-sky-50 border border-sky-200 rounded p-2 text-xs overflow-x-auto [&_pre]:!bg-transparent [&_pre]:!p-0 [&_pre]:!m-0 [&_pre]:!border-0 [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words">
+						{@html message.highlightedContent}
+					</div>
+				{:else}
+					<pre
+						class="bg-sky-50 border border-sky-200 rounded p-2 text-xs overflow-x-auto text-gray-800 whitespace-pre-wrap break-words font-mono">{getWriteContent(message.input)}</pre>
+				{/if}
 			{:else if message.name === 'Edit'}
 				<!-- Editツールの場合は特別な表示 -->
 				<div class="text-xs font-medium text-purple-800 mb-2">変更前:</div>

@@ -25,6 +25,7 @@ export namespace SessionMessage {
         name: string;
         input: unknown;
         output: ({ type: "image"; uri: string; } | { type: "text"; text: string; })[] | null;
+        highlightedContent?: string;
     }
     export type ApprovalMessage = {
         type: "approval_message";
